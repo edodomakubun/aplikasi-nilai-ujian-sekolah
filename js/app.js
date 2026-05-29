@@ -1,152 +1,333 @@
 import { api } from './api.js';
+import { logout, checkAuth } from './auth.js';
 
-let gradesData = [];
+let rawData = [];
 
-document.addEventListener('DOMContentLoaded', async () => {
+// ==========================================
+// ROUTER & NAVIGATION
+// ==========================================
+function navigateTo(hash) {
+    if (!hash || hash === '#' || hash === '') hash = '#dashboard';
     
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', loadDashboardData);
-        // Load data on start
-        loadDashboardData();
-    }
+    // Hide all spa-contents
+    document.querySelectorAll('.spa-content').forEach(el => {
+        el.classList.add('hidden');
+        el.classList.remove('block');
+    });
 
-    const searchInput = document.getElementById('searchInput');
-    if(searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = gradesData.filter(student => 
-                (student['NAMA SISWA'] || '').toLowerCase().includes(query)
-            );
-            renderTable(filtered);
-        });
+    // Reset all nav link active states
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('bg-blue-50', 'text-blue-700');
+        link.classList.add('text-gray-600');
+    });
+    
+    const targetId = hash.replace('#', '') + '-content';
+    const targetEl = document.getElementById(targetId);
+    
+    if (targetEl) {
+        targetEl.classList.remove('hidden');
+        targetEl.classList.add('block');
+        
+        // Active Nav
+        const activeLink = document.querySelector(`.nav-link[href="${hash}"]`);
+        if (activeLink) {
+            activeLink.classList.remove('text-gray-600');
+            activeLink.classList.add('bg-blue-50', 'text-blue-700');
+        }
+        
+        // Refresh dashboard data if visiting dashboard
+        if (hash === '#dashboard' && rawData.length === 0) {
+            fetchData();
+        }
     }
+}
+
+// Listen to hash changes for SPA routing
+window.addEventListener('hashchange', () => {
+    navigateTo(window.location.hash);
 });
 
-async function loadDashboardData() {
+// ==========================================
+// INITIALIZATION & EVENT LISTENERS
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Initial Route
+    if(localStorage.getItem('auth_token')) {
+        navigateTo(window.location.hash);
+    }
+    
+    // Auth Buttons
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
+    document.getElementById('logoutBtnMobile')?.addEventListener('click', logout);
+
+    // Refresh Dashboard Button
+    document.getElementById('refreshBtn')?.addEventListener('click', fetchData);
+
+    // Live Search
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        renderTable(e.target.value);
+    });
+
+    // Login Form Submit
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const msg = document.getElementById('loginMessage');
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div> Memproses...';
+            msg.classList.add('hidden');
+
+            const result = await api.login(username, password);
+
+            if (result && result.success) {
+                localStorage.setItem('auth_token', result.token);
+                localStorage.setItem('username', username);
+                checkAuth(); // Switch to app view
+                fetchData(); // Load data initially
+            } else {
+                msg.classList.remove('hidden');
+                msg.innerText = result ? result.error : "Gagal terhubung ke server.";
+                btn.disabled = false;
+                btn.innerHTML = 'Masuk ke Dashboard';
+            }
+        });
+    }
+
+    // Input Siswa Form
+    const siswaForm = document.getElementById('siswaForm');
+    if (siswaForm) {
+        siswaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitSiswaBtn');
+            const msg = document.getElementById('statusSiswa');
+            
+            const fields = ['NO URUT', 'NIS', 'NISN', 'NO PESERTA UJIAN', 'NO ABSEN', 'NAMA PESERTA', 'JENIS KELAMIN', 'TEMPAT LAHIR', 'TANGGAL LAHIR', 'NAMA ORANG TUA'];
+            const data = {};
+            fields.forEach(field => { data[field] = document.getElementById(field).value; });
+
+            btn.disabled = true;
+            btn.innerHTML = 'Menyimpan...';
+            msg.className = 'hidden rounded-lg p-4 mt-4 text-sm font-medium';
+
+            const result = await api.saveStudent(data);
+
+            btn.disabled = false;
+            btn.innerHTML = 'Simpan Data Siswa';
+
+            msg.classList.remove('hidden');
+            if (result && result.success) {
+                msg.classList.add('bg-green-100', 'text-green-700');
+                msg.innerText = "Berhasil: " + result.message;
+                siswaForm.reset();
+            } else {
+                msg.classList.add('bg-red-100', 'text-red-700');
+                msg.innerText = "Gagal: " + (result ? result.error : "Terjadi kesalahan");
+            }
+        });
+    }
+
+    // Input Nilai Kalkulasi
+    document.querySelectorAll('.calc-trigger').forEach(input => {
+        input.addEventListener('input', () => {
+            const n7 = parseFloat(document.getElementById('N_7').value) || 0;
+            const n8 = parseFloat(document.getElementById('N_8').value) || 0;
+            const n9 = parseFloat(document.getElementById('N_9').value) || 0;
+            const n10 = parseFloat(document.getElementById('N_10').value) || 0;
+            const n11 = parseFloat(document.getElementById('N_11').value) || 0;
+
+            const jml = n7 + n8 + n9 + n10 + n11;
+            const rataNr = jml / 5;
+            const bobot40 = rataNr * 0.4;
+
+            document.getElementById('JML').value = jml > 0 ? jml.toFixed(2) : '';
+            document.getElementById('RATA_NR').value = rataNr > 0 ? rataNr.toFixed(2) : '';
+            document.getElementById('BOBOT_40').value = bobot40 > 0 ? bobot40.toFixed(2) : '';
+
+            const tulis = parseFloat(document.getElementById('TULIS').value) || 0;
+            const praktik = parseFloat(document.getElementById('PRAKTIK').value) || 0;
+            
+            const rataUs = (tulis + praktik) / 2;
+            const bobot60 = rataUs * 0.6;
+
+            document.getElementById('RATA_US').value = rataUs > 0 ? rataUs.toFixed(2) : '';
+            document.getElementById('BOBOT_60').value = bobot60 > 0 ? bobot60.toFixed(2) : '';
+
+            if(bobot40 > 0 && bobot60 > 0) {
+                document.getElementById('NILAI_SEKOLAH').value = (bobot40 + bobot60).toFixed(2);
+            } else {
+                document.getElementById('NILAI_SEKOLAH').value = '';
+            }
+        });
+    });
+
+    // Input Nilai Submit
+    const nilaiForm = document.getElementById('nilaiForm');
+    if (nilaiForm) {
+        nilaiForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitNilaiBtn');
+            const msg = document.getElementById('statusNilai');
+            
+            const data = {
+                'NO': document.getElementById('NO').value,
+                'NAMA SISWA': document.getElementById('NAMA_SISWA').value,
+                '7': document.getElementById('N_7').value,
+                '8': document.getElementById('N_8').value,
+                '9': document.getElementById('N_9').value,
+                '10': document.getElementById('N_10').value,
+                '11': document.getElementById('N_11').value,
+                'JML': document.getElementById('JML').value,
+                'RATA-RATA NR': document.getElementById('RATA_NR').value,
+                'BOBOT 40%': document.getElementById('BOBOT_40').value,
+                'Tulis': document.getElementById('TULIS').value,
+                'Praktik': document.getElementById('PRAKTIK').value,
+                'Rata-Rata': document.getElementById('RATA_US').value,
+                'BOBOT 60%': document.getElementById('BOBOT_60').value,
+                'NILAI SEKOLAH': document.getElementById('NILAI_SEKOLAH').value
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = 'Menyimpan...';
+            msg.className = 'hidden rounded-lg p-4 mt-4 text-sm font-medium';
+
+            const result = await api.saveGrade(data);
+
+            btn.disabled = false;
+            btn.innerHTML = 'Simpan Data Nilai';
+
+            msg.classList.remove('hidden');
+            if (result && result.success) {
+                msg.classList.add('bg-green-100', 'text-green-700');
+                msg.innerText = "Berhasil: " + result.message;
+                nilaiForm.reset();
+            } else {
+                msg.classList.add('bg-red-100', 'text-red-700');
+                msg.innerText = "Gagal: " + (result ? result.error : "Terjadi kesalahan");
+            }
+        });
+    }
+
+});
+
+// ==========================================
+// DASHBOARD DATA FETCHING
+// ==========================================
+async function fetchData() {
     const loader = document.getElementById('loader');
-    const dashboardContent = document.getElementById('dashboardContent');
+    const content = document.getElementById('dashboardStats');
     
     loader.classList.remove('hidden');
-    dashboardContent.classList.add('opacity-50', 'pointer-events-none');
+    content.classList.add('hidden');
 
     const result = await api.getGrades();
     
     loader.classList.add('hidden');
-    dashboardContent.classList.remove('opacity-50', 'pointer-events-none');
+    content.classList.remove('hidden');
 
-    if (result && result.data) {
-        gradesData = result.data;
-        updateStats();
-        renderRanking();
-        renderTable(gradesData);
+    if (result && result.success) {
+        rawData = result.data;
+        processStats(rawData);
+        renderRanking(rawData);
+        renderTable('');
     } else {
-        document.getElementById('gradesTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500">Gagal memuat data. Periksa konfigurasi API.</td></tr>`;
+        document.getElementById('gradesTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500">Gagal memuat data. Periksa koneksi atau URL API.</td></tr>`;
     }
 }
 
-function updateStats() {
-    if(gradesData.length === 0) return;
+function processStats(data) {
+    if (data.length === 0) return;
 
-    let totalSiswa = gradesData.length;
-    
-    let sumUS = 0;
-    let maxNilaiSekolah = 0;
-    let validUSCount = 0;
+    document.getElementById('statTotalSiswa').innerText = data.length;
 
-    gradesData.forEach(student => {
-        let us = parseFloat(student['Rata-Rata']) || 0; // Rata-Rata US
-        if(us > 0) {
-            sumUS += us;
-            validUSCount++;
-        }
+    let totalUs = 0;
+    let highest = 0;
+    let countUs = 0;
 
-        let nilaiSekolah = parseFloat(student['NILAI SEKOLAH']) || 0;
-        if(nilaiSekolah > maxNilaiSekolah) {
-            maxNilaiSekolah = nilaiSekolah;
-        }
-    });
-
-    let rataRataUS = validUSCount > 0 ? (sumUS / validUSCount) : 0;
-
-    document.getElementById('statTotalSiswa').innerText = totalSiswa;
-    document.getElementById('statRataRata').innerText = rataRataUS > 0 ? rataRataUS.toFixed(2) : '-';
-    document.getElementById('statTertinggi').innerText = maxNilaiSekolah > 0 ? maxNilaiSekolah.toFixed(2) : '-';
-}
-
-function renderRanking() {
-    const rankingList = document.getElementById('rankingList');
-    
-    // Sort descending by NILAI SEKOLAH
-    const sorted = [...gradesData].sort((a, b) => {
-        let valA = parseFloat(a['NILAI SEKOLAH']) || 0;
-        let valB = parseFloat(b['NILAI SEKOLAH']) || 0;
-        return valB - valA;
-    });
-
-    // Top 10
-    const top10 = sorted.slice(0, 10);
-    
-    rankingList.innerHTML = '';
-    
-    if (top10.length === 0) {
-        rankingList.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm">Belum ada data.</li>';
-        return;
-    }
-
-    top10.forEach((student, index) => {
-        let nilai = parseFloat(student['NILAI SEKOLAH']) || 0;
+    data.forEach(row => {
+        const us = parseFloat(row['Rata-Rata']) || 0;
+        const akhir = parseFloat(row['NILAI SEKOLAH']) || 0;
         
-        let rankBadge = '';
-        if(index === 0) rankBadge = '<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-100 text-yellow-600 font-bold text-sm shadow-sm">1</span>';
-        else if(index === 1) rankBadge = '<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-gray-600 font-bold text-sm shadow-sm">2</span>';
-        else if(index === 2) rankBadge = '<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-orange-100 text-orange-600 font-bold text-sm shadow-sm">3</span>';
-        else rankBadge = `<span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-50 text-blue-600 font-bold text-sm">${index + 1}</span>`;
-
-        let li = document.createElement('li');
-        li.className = 'px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors';
-        li.innerHTML = `
-            <div class="flex items-center">
-                ${rankBadge}
-                <div class="ml-4">
-                    <p class="text-sm font-semibold text-gray-900">${student['NAMA SISWA'] || 'Tanpa Nama'}</p>
-                </div>
-            </div>
-            <div class="text-right">
-                <span class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">${nilai > 0 ? nilai.toFixed(2) : '-'}</span>
-            </div>
-        `;
-        rankingList.appendChild(li);
+        if (us > 0) {
+            totalUs += us;
+            countUs++;
+        }
+        if (akhir > highest) {
+            highest = akhir;
+        }
     });
+
+    const avgUs = countUs > 0 ? (totalUs / countUs).toFixed(2) : 0;
+    document.getElementById('statRataRata').innerText = avgUs;
+    document.getElementById('statTertinggi').innerText = highest.toFixed(2);
 }
 
-function renderTable(data) {
-    const tableBody = document.getElementById('gradesTableBody');
-    tableBody.innerHTML = '';
+function renderRanking(data) {
+    const sorted = [...data]
+        .filter(a => parseFloat(a['NILAI SEKOLAH']) > 0)
+        .sort((a, b) => parseFloat(b['NILAI SEKOLAH']) - parseFloat(a['NILAI SEKOLAH']))
+        .slice(0, 10);
 
-    if (data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Tidak ada data ditemukan.</td></tr>`;
+    const list = document.getElementById('rankingList');
+    
+    if (sorted.length === 0) {
+        list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm">Belum ada data nilai.</li>';
         return;
     }
 
-    data.forEach(student => {
-        let rataNR = parseFloat(student['RATA-RATA NR']) || 0;
-        let rataUS = parseFloat(student['Rata-Rata']) || 0;
-        let nilaiSekolah = parseFloat(student['NILAI SEKOLAH']) || 0;
+    let html = '';
+    sorted.forEach((item, index) => {
+        let badgeClass = "bg-gray-100 text-gray-700";
+        if (index === 0) badgeClass = "bg-yellow-100 text-yellow-700 font-bold border border-yellow-200";
+        else if (index === 1) badgeClass = "bg-gray-200 text-gray-700 font-bold";
+        else if (index === 2) badgeClass = "bg-amber-100 text-amber-700 font-bold";
 
-        let tr = document.createElement('tr');
-        tr.className = 'hover:bg-blue-50/30 transition-colors';
-        tr.innerHTML = `
-            <td class="px-6 py-4 text-gray-500">${student['NO'] || '-'}</td>
-            <td class="px-6 py-4 font-medium text-gray-900">${student['NAMA SISWA'] || '-'}</td>
-            <td class="px-6 py-4 text-center text-gray-600">${rataNR > 0 ? rataNR.toFixed(2) : '-'}</td>
-            <td class="px-6 py-4 text-center text-gray-600">${rataUS > 0 ? rataUS.toFixed(2) : '-'}</td>
-            <td class="px-6 py-4 text-center">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                    ${nilaiSekolah > 0 ? nilaiSekolah.toFixed(2) : '-'}
-                </span>
-            </td>
+        html += `
+            <li class="p-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between">
+                <div class="flex items-center">
+                    <span class="flex items-center justify-center w-8 h-8 rounded-full text-xs ${badgeClass}">${index + 1}</span>
+                    <span class="ml-4 font-medium text-gray-800 text-sm">${item['NAMA SISWA']}</span>
+                </div>
+                <span class="font-bold text-blue-600 text-sm">${parseFloat(item['NILAI SEKOLAH']).toFixed(2)}</span>
+            </li>
         `;
-        tableBody.appendChild(tr);
     });
+    list.innerHTML = html;
+}
+
+function renderTable(searchQuery) {
+    const tbody = document.getElementById('gradesTableBody');
+    if (rawData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data.</td></tr>';
+        return;
+    }
+
+    const filtered = rawData.filter(row => {
+        const name = (row['NAMA SISWA'] || '').toLowerCase();
+        return name.includes(searchQuery.toLowerCase());
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Siswa tidak ditemukan.</td></tr>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach((row, idx) => {
+        html += `
+            <tr class="hover:bg-white/50 transition-colors">
+                <td class="px-6 py-4 text-gray-500">${row['NO'] || (idx+1)}</td>
+                <td class="px-6 py-4 font-medium text-gray-900">${row['NAMA SISWA']}</td>
+                <td class="px-6 py-4 text-center text-gray-600">${parseFloat(row['RATA-RATA NR']||0).toFixed(2)}</td>
+                <td class="px-6 py-4 text-center text-gray-600">${parseFloat(row['Rata-Rata']||0).toFixed(2)}</td>
+                <td class="px-6 py-4 text-center font-bold text-blue-600 bg-blue-50/30">${parseFloat(row['NILAI SEKOLAH']||0).toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
 }
