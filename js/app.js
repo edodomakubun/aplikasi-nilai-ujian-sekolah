@@ -268,8 +268,8 @@ async function fetchData() {
     loader.classList.add('hidden');
     content.classList.remove('hidden');
 
-    if (result && result.success) {
-        rawData = result.data;
+    if (result && !result.error) {
+        rawData = result.data || [];
         processStats(rawData);
         renderRanking(rawData);
         renderTable('');
@@ -383,10 +383,10 @@ async function fetchStudentsForNilai() {
     // Also fetch grades to check if they already have grades
     const gradesResult = await api.getGrades();
     
-    if (result && result.success) {
-        rawStudents = result.data;
-        if (gradesResult && gradesResult.success) {
-            rawData = gradesResult.data;
+    if (result && !result.error) {
+        rawStudents = result.data || [];
+        if (gradesResult && !gradesResult.error) {
+            rawData = gradesResult.data || [];
         }
         renderStudentsForNilai('');
     } else {
