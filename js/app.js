@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { logout, checkAuth } from './auth.js';
 
 let rawData = [];
+let rawStudents = [];
 
 // ==========================================
 // ROUTER & NAVIGATION
@@ -46,9 +47,15 @@ function navigateTo(hash) {
             activeLinkMobile.classList.add('text-blue-600');
         }
         
-        // Refresh dashboard data if visiting dashboard
-        if (hash === '#dashboard' && rawData.length === 0) {
+        // Selalu refresh data dashboard untuk mencegah bug caching
+        if (hash === '#dashboard') {
             fetchData();
+        }
+        
+        // Load daftar siswa jika masuk ke menu input nilai
+        if (hash === '#nilai') {
+            fetchStudentsForNilai();
+            document.getElementById('nilaiFormOverlay').classList.remove('hidden');
         }
     }
 }
@@ -143,6 +150,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Cari Siswa
+    document.getElementById('searchSiswaInput')?.addEventListener('input', (e) => {
+        renderStudentsForNilai(e.target.value);
+    });
+    
+    // Refresh Daftar Siswa
+    document.getElementById('refreshSiswaBtn')?.addEventListener('click', () => {
+        fetchStudentsForNilai();
+    });
+
+    // Batal Pilih Siswa
+    document.getElementById('batalPilihBtn')?.addEventListener('click', () => {
+        document.getElementById('nilaiForm').reset();
+        document.getElementById('nilaiFormOverlay').classList.remove('hidden');
+    });
+
     // Input Nilai Kalkulasi
     document.querySelectorAll('.calc-trigger').forEach(input => {
         input.addEventListener('input', () => {
@@ -217,6 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 msg.classList.add('bg-green-100', 'text-green-700');
                 msg.innerText = "Berhasil: " + result.message;
                 nilaiForm.reset();
+                document.getElementById('nilaiFormOverlay').classList.remove('hidden');
+                // Refresh data
+                fetchData();
+                fetchStudentsForNilai();
             } else {
                 msg.classList.add('bg-red-100', 'text-red-700');
                 msg.innerText = "Gagal: " + (result ? result.error : "Terjadi kesalahan");
@@ -261,14 +288,14 @@ function processStats(data) {
     let countUs = 0;
 
     data.forEach(row => {
-        const us = parseFloat(row['Rata-Rata']) || 0;
-        const akhir = parseFloat(row['NILAI SEKOLAH']) || 0;
+        const us = parseFloat(row['Rata-Rata']);
+        const akhir = parseFloat(row['NILAI SEKOLAH']);
         
-        if (us > 0) {
+        if (!isNaN(us) && us > 0) {
             totalUs += us;
             countUs++;
         }
-        if (akhir > highest) {
+        if (!isNaN(akhir) && akhir > highest) {
             highest = akhir;
         }
     });
@@ -342,3 +369,112 @@ function renderTable(searchQuery) {
     });
     tbody.innerHTML = html;
 }
+
+// ==========================================
+// INPUT NILAI: STUDENT LIST FETCHING
+// ==========================================
+async function fetchStudentsForNilai() {
+    const list = document.getElementById('siswaListNilai');
+    list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>Memuat daftar siswa...</li>';
+    
+    // Fetch students
+    const result = await api.getStudents();
+    
+    // Also fetch grades to check if they already have grades
+    const gradesResult = await api.getGrades();
+    
+    if (result && result.success) {
+        rawStudents = result.data;
+        if (gradesResult && gradesResult.success) {
+            rawData = gradesResult.data;
+        }
+        renderStudentsForNilai('');
+    } else {
+        list.innerHTML = '<li class="p-6 text-center text-red-500 text-sm">Gagal memuat daftar siswa.</li>';
+    }
+}
+
+function renderStudentsForNilai(searchQuery) {
+    const list = document.getElementById('siswaListNilai');
+    if (rawStudents.length === 0) {
+        list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm">Belum ada data siswa. Input siswa terlebih dahulu.</li>';
+        return;
+    }
+
+    const filtered = rawStudents.filter(row => {
+        const name = (row['NAMA PESERTA'] || '').toLowerCase();
+        return name.includes(searchQuery.toLowerCase());
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm">Siswa tidak ditemukan.</li>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach((row, idx) => {
+        const nama = row['NAMA PESERTA'];
+        const no = row['NO URUT'] || (idx + 1);
+        
+        // Cek apakah siswa ini sudah ada di sheet Nilai
+        const hasGrades = rawData.some(g => g['NAMA SISWA'] === nama && parseFloat(g['NILAI SEKOLAH']) > 0);
+        
+        const badge = hasGrades 
+            ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Sudah Dinilai</span>'
+            : '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Belum Dinilai</span>';
+
+        html += `
+            <li class="p-4 hover:bg-blue-50/50 transition-colors border-b border-gray-50 flex items-center justify-between cursor-pointer" onclick="selectStudentForNilai('${no}', \`${nama.replace(/`/g, '')}\`)">
+                <div>
+                    <p class="text-sm font-bold text-gray-900">${nama}</p>
+                    <p class="text-xs text-gray-500 mt-1">No Urut: ${no}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    ${badge}
+                    <button type="button" class="text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors border border-blue-200">
+                        Input
+                    </button>
+                </div>
+            </li>
+        `;
+    });
+    list.innerHTML = html;
+}
+
+// Terkspos ke window agar bisa dipanggil via inline onclick
+window.selectStudentForNilai = function(no, nama) {
+    document.getElementById('NO').value = no;
+    document.getElementById('NAMA_SISWA').value = nama;
+    
+    document.getElementById('namaSiswaDisplay').innerText = nama;
+    document.getElementById('noUrutDisplay').innerText = `No Urut: ${no}`;
+    document.getElementById('avatarSiswa').innerText = nama.charAt(0).toUpperCase();
+    
+    // Tampilkan tombol Batal
+    document.getElementById('batalPilihBtn').classList.remove('hidden');
+    document.getElementById('batalPilihBtn').classList.add('block');
+    
+    // Sembunyikan Overlay
+    document.getElementById('nilaiFormOverlay').classList.add('hidden');
+    
+    // Auto-fill jika data nilai sudah ada
+    const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama);
+    if (existingGrade) {
+        document.getElementById('N_7').value = existingGrade['7'] || '';
+        document.getElementById('N_8').value = existingGrade['8'] || '';
+        document.getElementById('N_9').value = existingGrade['9'] || '';
+        document.getElementById('N_10').value = existingGrade['10'] || '';
+        document.getElementById('N_11').value = existingGrade['11'] || '';
+        document.getElementById('TULIS').value = existingGrade['Tulis'] || '';
+        document.getElementById('PRAKTIK').value = existingGrade['Praktik'] || '';
+        
+        // Trigger perhitungan kalkulasi dengan mengirim event 'input' ke salah satu trigger
+        document.getElementById('N_7').dispatchEvent(new Event('input'));
+    } else {
+        // Kosongkan form nilai
+        ['N_7','N_8','N_9','N_10','N_11','TULIS','PRAKTIK'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+        document.getElementById('N_7').dispatchEvent(new Event('input'));
+    }
+};
