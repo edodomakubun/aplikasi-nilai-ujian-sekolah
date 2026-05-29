@@ -405,7 +405,7 @@ function renderSiswaTable(searchQuery = '') {
     if (!tbody) return;
     
     if (rawStudents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data siswa.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="px-6 py-8 text-center text-gray-500">Belum ada data siswa.</td></tr>`;
         return;
     }
 
@@ -417,7 +417,7 @@ function renderSiswaTable(searchQuery = '') {
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Siswa tidak ditemukan.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="px-6 py-8 text-center text-gray-500">Siswa tidak ditemukan.</td></tr>`;
         return;
     }
 
@@ -425,15 +425,21 @@ function renderSiswaTable(searchQuery = '') {
     filtered.forEach((row, idx) => {
         html += `
             <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${row['NO URUT']}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${row['NIS']}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${row['NAMA PESERTA']}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${row['JENIS KELAMIN']}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
-                    <button onclick="editSiswa('${row['NIS']}')" class="text-blue-600 hover:text-blue-900 mx-2" title="Edit">
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500">${row['NO URUT'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">${row['NIS'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${row['NISN'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${row['NO PESERTA UJIAN'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${row['NO ABSEN'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${row['NAMA PESERTA'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${row['JENIS KELAMIN'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${row['TEMPAT LAHIR'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${row['TANGGAL LAHIR'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${row['NAMA ORANG TUA'] || ''}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-center sticky right-0 bg-gray-50">
+                    <button onclick="editSiswa('${row['NIS']}')" class="text-blue-600 hover:text-blue-900 mx-1" title="Edit">
                         <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     </button>
-                    <button onclick="deleteSiswa('${row['NIS']}')" class="text-red-600 hover:text-red-900 mx-2" title="Hapus">
+                    <button onclick="deleteSiswa('${row['NIS']}')" class="text-red-600 hover:text-red-900 mx-1" title="Hapus">
                         <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                 </td>
@@ -697,3 +703,110 @@ function calculateFooter() {
         </tr>
     `;
 }
+
+// ==========================================
+// EXPORT TO EXCEL
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const exportBtn = document.getElementById('exportExcelBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            if (!dashboardData || dashboardData.length === 0) {
+                alert("Belum ada data nilai untuk diekspor!");
+                return;
+            }
+
+            exportBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div> Mengekspor...';
+            exportBtn.disabled = true;
+
+            setTimeout(() => {
+                try {
+                    const wb = XLSX.utils.book_new();
+
+                    // 1. Sheet 10 Besar Rangking
+                    const sortedTop10 = [...dashboardData]
+                        .filter(a => parseFloat(a['NILAI SEKOLAH']) > 0)
+                        .sort((a, b) => parseFloat(b['NILAI SEKOLAH']) - parseFloat(a['NILAI SEKOLAH']))
+                        .slice(0, 10);
+                    
+                    const top10Data = sortedTop10.map((item, idx) => ({
+                        'Peringkat': idx + 1,
+                        'Nama Siswa': item['NAMA SISWA'],
+                        'Rata-rata NR': item['RATA-RATA NR'],
+                        'Rata-rata US': item['Rata-Rata'],
+                        'Nilai Akhir Sekolah': item['NILAI SEKOLAH']
+                    }));
+                    
+                    const wsTop10 = XLSX.utils.json_to_sheet(top10Data);
+                    XLSX.utils.book_append_sheet(wb, wsTop10, "10 Besar Rangking");
+
+                    // 2. Sheet Rekap Nilai Akhir
+                    const rekapData = dashboardData
+                        .sort((a, b) => a['NAMA SISWA'].localeCompare(b['NAMA SISWA']))
+                        .map((item, idx) => ({
+                            'No': idx + 1,
+                            'Nama Siswa': item['NAMA SISWA'],
+                            'Rata-rata NR': item['RATA-RATA NR'],
+                            'Rata-rata US': item['Rata-Rata'],
+                            'Nilai Akhir Sekolah': item['NILAI SEKOLAH']
+                        }));
+                        
+                    const wsRekap = XLSX.utils.json_to_sheet(rekapData);
+                    XLSX.utils.book_append_sheet(wb, wsRekap, "Rekap Nilai Akhir");
+
+                    // 3. Sheet Per Mata Pelajaran
+                    const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+                    
+                    subjects.forEach(subject => {
+                        const subjectData = [];
+                        
+                        rawStudents.forEach((student, idx) => {
+                            const nama = student['NAMA PESERTA'];
+                            const no = student['NO URUT'] || (idx + 1);
+                            const grade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === subject) || {};
+                            
+                            subjectData.push({
+                                'NO': no,
+                                'NAMA SISWA': nama,
+                                'Smt 7': grade['7'] || '',
+                                'Smt 8': grade['8'] || '',
+                                'Smt 9': grade['9'] || '',
+                                'Smt 10': grade['10'] || '',
+                                'Smt 11': grade['11'] || '',
+                                'JML': grade['JML'] || '',
+                                'RATA-RATA NR': grade['RATA-RATA NR'] || '',
+                                'BOBOT 40%': grade['BOBOT 40%'] || '',
+                                'Tulis': grade['Tulis'] || '',
+                                'Praktik': grade['Praktik'] || '',
+                                'Rata-Rata US': grade['Rata-Rata'] || '',
+                                'BOBOT 60%': grade['BOBOT 60%'] || '',
+                                'NILAI SEKOLAH': grade['NILAI SEKOLAH'] || ''
+                            });
+                        });
+                        
+                        // Limit sheet name to 31 chars for Excel compatibility
+                        let sheetName = subject;
+                        if (sheetName.length > 31) {
+                            sheetName = sheetName.substring(0, 31);
+                        }
+                        
+                        const wsSubject = XLSX.utils.json_to_sheet(subjectData);
+                        XLSX.utils.book_append_sheet(wb, wsSubject, sheetName);
+                    });
+
+                    // Generate file and trigger download
+                    XLSX.writeFile(wb, "Data_Nilai_Sekolah.xlsx");
+                } catch (e) {
+                    console.error("Gagal mengekspor ke Excel", e);
+                    alert("Terjadi kesalahan saat mengekspor data ke Excel.");
+                }
+
+                exportBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Ekspor ke Excel
+                `;
+                exportBtn.disabled = false;
+            }, 100);
+        });
+    }
+});
