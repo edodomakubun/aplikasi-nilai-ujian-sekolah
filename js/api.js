@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbwDWu-BsxeTddmxcAOzLf2sa8MZnjeZEkKTm_YKoafNTUxB6_4SKYaP5ng1rerU0xt_kA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw3u0vtC-Z0CvisG3oc5G6xaeVFM5l4IiO_hDXz8CtIK-QvwAcMpNCcA9AtrkFQ71bBFQ/exec';
 
 async function fetchAPI(action, method = 'GET', data = null) {
   if (API_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
@@ -33,6 +33,7 @@ export const api = {
   getStudents: () => fetchAPI('getStudents'),
   getGrades: () => fetchAPI('getGrades'),
   saveStudent: (data) => fetchAPI('saveStudent', 'POST', data),
+  deleteStudent: (data) => fetchAPI('deleteStudent', 'POST', data),
   saveGrade: (data) => fetchAPI('saveGrade', 'POST', data),
   saveGradesBatch: (data) => fetchAPI('saveGradesBatch', 'POST', data)
 };

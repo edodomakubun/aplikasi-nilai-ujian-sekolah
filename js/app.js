@@ -49,15 +49,8 @@ function navigateTo(hash) {
             activeLinkMobile.classList.add('text-blue-600');
         }
         
-        // Selalu refresh data dashboard untuk mencegah bug caching
-        if (hash === '#dashboard') {
-            fetchData();
-        }
-        
-        // Load daftar siswa jika masuk ke menu input nilai
-        if (hash === '#nilai') {
-            fetchStudentsForNilai();
-        }
+        // Refresh active view with cache
+        refreshActiveView();
     }
 }
 
@@ -81,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logoutBtnMobile')?.addEventListener('click', logout);
 
     // Refresh Dashboard Button
-    document.getElementById('refreshBtn')?.addEventListener('click', fetchData);
+    document.getElementById('refreshBtn')?.addEventListener('click', syncData);
 
     // Live Search
     document.getElementById('searchInput')?.addEventListener('input', (e) => {
@@ -108,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('auth_token', result.token);
                 localStorage.setItem('username', username);
                 checkAuth(); // Switch to app view
-                fetchData(); // Load data initially
+                syncData(); // Background sync data initially
             } else {
                 msg.classList.remove('hidden');
                 msg.innerText = result ? result.error : "Gagal terhubung ke server.";
@@ -118,7 +111,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Input Siswa Form
+    // Modal Siswa
+    const modal = document.getElementById('siswaModal');
+    const openBtn = document.getElementById('openAddSiswaModal');
+    const closeBtn = document.getElementById('closeSiswaModal');
+    
+    if(openBtn) {
+        openBtn.addEventListener('click', () => {
+            document.getElementById('siswaForm').reset();
+            document.getElementById('siswaMode').value = 'add';
+            document.getElementById('NIS').readOnly = false;
+            document.getElementById('siswaModalTitle').innerText = 'Tambah Data Siswa';
+            document.getElementById('statusSiswa').classList.add('hidden');
+            modal.classList.remove('hidden');
+        });
+    }
+    if(closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+    }
+
+    // Input Siswa Form (CRUD)
     const siswaForm = document.getElementById('siswaForm');
     if (siswaForm) {
         siswaForm.addEventListener('submit', async (e) => {
@@ -143,13 +157,66 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result && result.success) {
                 msg.classList.add('bg-green-100', 'text-green-700');
                 msg.innerText = "Berhasil: " + result.message;
-                siswaForm.reset();
+                syncData(); // Trigger background sync after insert/update
+                setTimeout(() => modal.classList.add('hidden'), 1000);
             } else {
                 msg.classList.add('bg-red-100', 'text-red-700');
                 msg.innerText = "Gagal: " + (result ? result.error : "Terjadi kesalahan");
             }
         });
     }
+    
+    // Live Search Siswa
+    document.getElementById('searchSiswaInput')?.addEventListener('input', (e) => {
+        renderSiswaTable(e.target.value);
+    });
+    
+    // Make deleteStudent global so it can be called from onclick
+    window.deleteSiswa = async function(nis) {
+        if(!confirm('Apakah Anda yakin ingin menghapus data siswa dengan NIS: ' + nis + '?')) return;
+        
+        const syncIndicator = document.getElementById('syncIndicator');
+        if(syncIndicator) syncIndicator.classList.remove('translate-y-20', 'opacity-0');
+        
+        const result = await api.deleteStudent({ NIS: nis });
+        
+        if(result && result.success) {
+            syncData();
+        } else {
+            alert('Gagal menghapus siswa: ' + (result? result.error : 'Kesalahan jaringan'));
+            if(syncIndicator) syncIndicator.classList.add('translate-y-20', 'opacity-0');
+        }
+    };
+    
+    window.editSiswa = function(nis) {
+        const student = rawStudents.find(s => String(s.NIS) === String(nis));
+        if(!student) return;
+        
+        document.getElementById('siswaForm').reset();
+        document.getElementById('siswaMode').value = 'edit';
+        document.getElementById('siswaModalTitle').innerText = 'Edit Data Siswa';
+        document.getElementById('statusSiswa').classList.add('hidden');
+        
+        const fields = ['NO URUT', 'NIS', 'NISN', 'NO PESERTA UJIAN', 'NO ABSEN', 'NAMA PESERTA', 'JENIS KELAMIN', 'TEMPAT LAHIR', 'TANGGAL LAHIR', 'NAMA ORANG TUA'];
+        fields.forEach(field => {
+            const el = document.getElementById(field);
+            if(el) {
+                if(field === 'TANGGAL LAHIR' && student[field]) {
+                    try {
+                        const dateObj = new Date(student[field]);
+                        el.value = dateObj.toISOString().split('T')[0];
+                    } catch(e) {
+                        el.value = student[field];
+                    }
+                } else {
+                    el.value = student[field];
+                }
+            }
+        });
+        
+        document.getElementById('NIS').readOnly = true; // Lock NIS when editing
+        modal.classList.remove('hidden');
+    };
 
     // Subject Tabs Event Listener
     document.querySelectorAll('.mapel-btn').forEach(btn => {
@@ -225,8 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result && result.success) {
                 msg.innerHTML = '<span class="text-green-600">Berhasil: ' + result.message + '</span>';
-                fetchData(); // refresh dashboard data in background
-                fetchStudentsForNilai(); // refresh current spreadsheet data
+                syncData(); // background sync
             } else {
                 msg.innerHTML = '<span class="text-red-500">Gagal: ' + (result ? result.error : "Kesalahan server") + '</span>';
             }
@@ -238,68 +304,143 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// DASHBOARD DATA FETCHING
+// GLOBAL SYNC & STATE
 // ==========================================
-async function fetchData() {
-    const loader = document.getElementById('loader');
-    const content = document.getElementById('dashboardStats');
-    
-    loader.classList.remove('hidden');
-    content.classList.add('hidden');
+let isSyncing = false;
+let firstLoad = true;
 
-    const result = await api.getGrades();
-    const studentsResult = await api.getStudents();
+async function syncData() {
+    if (isSyncing) return;
+    isSyncing = true;
     
-    if (studentsResult && !studentsResult.error) {
-        rawStudents = studentsResult.data || [];
+    const syncIndicator = document.getElementById('syncIndicator');
+    if (syncIndicator) {
+        syncIndicator.classList.remove('translate-y-20', 'opacity-0');
     }
-    
-    loader.classList.add('hidden');
-    content.classList.remove('hidden');
 
-    if (result && !result.error) {
-        rawData = result.data || [];
+    try {
+        const [studentsResult, gradesResult] = await Promise.all([
+            api.getStudents(),
+            api.getGrades()
+        ]);
         
-        // Agregasi nilai rata-rata tiap siswa dari semua mata pelajaran
-        const studentGrades = {};
-        rawData.forEach(row => {
-            const name = row['NAMA SISWA'];
-            if (!studentGrades[name]) {
-                studentGrades[name] = { count: 0, sumNR: 0, sumUS: 0, sumAkhir: 0, 'NAMA SISWA': name };
-            }
-            const nr = parseFloat(row['RATA-RATA NR']);
-            const us = parseFloat(row['Rata-Rata']); 
-            const akhir = parseFloat(row['NILAI SEKOLAH']);
+        if (studentsResult && !studentsResult.error) {
+            rawStudents = studentsResult.data || [];
+        }
+        
+        if (gradesResult && !gradesResult.error) {
+            rawData = gradesResult.data || [];
             
-            if (!isNaN(akhir) && akhir > 0) {
-                studentGrades[name].sumNR += nr;
-                studentGrades[name].sumUS += us;
-                studentGrades[name].sumAkhir += akhir;
-                studentGrades[name].count++;
-            }
-        });
-        
-        dashboardData = [];
-        let index = 1;
-        for (let name in studentGrades) {
-            const st = studentGrades[name];
-            if (st.count > 0) {
-                dashboardData.push({
-                    'NO': index++,
-                    'NAMA SISWA': name,
-                    'RATA-RATA NR': (st.sumNR / st.count).toFixed(2),
-                    'Rata-Rata': (st.sumUS / st.count).toFixed(2),
-                    'NILAI SEKOLAH': (st.sumAkhir / st.count).toFixed(2)
-                });
+            // Agregasi nilai rata-rata tiap siswa dari semua mata pelajaran
+            const studentGrades = {};
+            rawData.forEach(row => {
+                const name = row['NAMA SISWA'];
+                if (!studentGrades[name]) {
+                    studentGrades[name] = { count: 0, sumNR: 0, sumUS: 0, sumAkhir: 0, 'NAMA SISWA': name };
+                }
+                const nr = parseFloat(row['RATA-RATA NR']);
+                const us = parseFloat(row['Rata-Rata']); 
+                const akhir = parseFloat(row['NILAI SEKOLAH']);
+                
+                if (!isNaN(akhir) && akhir > 0) {
+                    studentGrades[name].sumNR += nr;
+                    studentGrades[name].sumUS += us;
+                    studentGrades[name].sumAkhir += akhir;
+                    studentGrades[name].count++;
+                }
+            });
+            
+            dashboardData = [];
+            let index = 1;
+            for (let name in studentGrades) {
+                const st = studentGrades[name];
+                if (st.count > 0) {
+                    dashboardData.push({
+                        'NO': index++,
+                        'NAMA SISWA': name,
+                        'RATA-RATA NR': (st.sumNR / st.count).toFixed(2),
+                        'Rata-Rata': (st.sumUS / st.count).toFixed(2),
+                        'NILAI SEKOLAH': (st.sumAkhir / st.count).toFixed(2)
+                    });
+                }
             }
         }
+    } catch (e) {
+        console.error('Sync failed', e);
+    }
+    
+    if (syncIndicator) {
+        syncIndicator.classList.add('translate-y-20', 'opacity-0');
+    }
+    isSyncing = false;
+    firstLoad = false;
+    
+    // Auto-refresh active view
+    refreshActiveView();
+}
 
+function refreshActiveView() {
+    // Sembunyikan loader jika baru pertama kali load
+    const loader = document.getElementById('loader');
+    const content = document.getElementById('dashboardStats');
+    if(loader && !firstLoad) {
+        loader.classList.add('hidden');
+        content.classList.remove('hidden');
+    }
+
+    const hash = window.location.hash || '#dashboard';
+    if (hash === '#dashboard') {
         processStats(dashboardData);
         renderRanking(dashboardData);
-        renderTable('');
-    } else {
-        document.getElementById('gradesTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500">Gagal memuat data. Periksa koneksi atau URL API.</td></tr>`;
+        renderTable(document.getElementById('searchInput')?.value || '');
+    } else if (hash === '#siswa') {
+        renderSiswaTable(document.getElementById('searchSiswaInput')?.value || '');
+    } else if (hash === '#nilai') {
+        renderStudentsForNilai();
     }
+}
+
+function renderSiswaTable(searchQuery = '') {
+    const tbody = document.getElementById('siswaTableBody');
+    if (!tbody) return;
+    
+    if (rawStudents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data siswa.</td></tr>`;
+        return;
+    }
+
+    const filtered = rawStudents.filter(row => {
+        const name = (row['NAMA PESERTA'] || '').toLowerCase();
+        const nis = (row['NIS'] || '').toString().toLowerCase();
+        const q = searchQuery.toLowerCase();
+        return name.includes(q) || nis.includes(q);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Siswa tidak ditemukan.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach((row, idx) => {
+        html += `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${row['NO URUT']}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${row['NIS']}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${row['NAMA PESERTA']}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${row['JENIS KELAMIN']}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <button onclick="editSiswa('${row['NIS']}')" class="text-blue-600 hover:text-blue-900 mx-2" title="Edit">
+                        <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </button>
+                    <button onclick="deleteSiswa('${row['NIS']}')" class="text-red-600 hover:text-red-900 mx-2" title="Hapus">
+                        <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
 }
 
 function processStats(data) {
@@ -395,24 +536,6 @@ function renderTable(searchQuery) {
 // ==========================================
 // INPUT NILAI: STUDENT LIST FETCHING
 // ==========================================
-async function fetchStudentsForNilai() {
-    const tbody = document.getElementById('spreadsheetBody');
-    if(tbody) tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-gray-500">Memuat data...</td></tr>';
-    
-    const result = await api.getStudents();
-    const gradesResult = await api.getGrades();
-    
-    if (result && !result.error) {
-        rawStudents = result.data || [];
-        if (gradesResult && !gradesResult.error) {
-            rawData = gradesResult.data || [];
-        }
-        renderStudentsForNilai();
-    } else {
-        if(tbody) tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-red-500">Gagal memuat data.</td></tr>';
-    }
-}
-
 function renderStudentsForNilai() {
     const tbody = document.getElementById('spreadsheetBody');
     if (!tbody) return;

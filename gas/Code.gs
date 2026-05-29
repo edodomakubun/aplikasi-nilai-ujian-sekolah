@@ -27,6 +27,8 @@ function doPost(e) {
     return createJsonResponse(saveGrade(data));
   } else if (action === 'saveGradesBatch') {
     return createJsonResponse(saveGradesBatch(data));
+  } else if (action === 'deleteStudent') {
+    return createJsonResponse(deleteStudent(data));
   } else if (action === 'login') {
     return createJsonResponse(loginUser(data));
   }
@@ -65,14 +67,59 @@ function saveStudent(data) {
   
   const allData = sheet.getDataRange().getValues();
   const headers = allData[0];
+  const nisIndex = headers.indexOf('NIS');
+  
+  if (nisIndex === -1) return {error: "Kolom 'NIS' tidak ditemukan di Sheet Siswa"};
+  if (!data['NIS']) return {error: "NIS wajib diisi sebagai identitas unik"};
+  
+  let rowIndex = -1;
+  for(let i=1; i<allData.length; i++) {
+    // Treat as string for comparison
+    if(String(allData[i][nisIndex]) === String(data['NIS'])) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
   
   const row = [];
   for(let i=0; i<headers.length; i++) {
     row.push(data[headers[i]] !== undefined ? data[headers[i]] : "");
   }
   
-  sheet.appendRow(row);
-  return {success: true, message: "Data Siswa berhasil disimpan"};
+  if (rowIndex > -1) {
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+    return {success: true, message: "Data Siswa berhasil diperbarui"};
+  } else {
+    sheet.appendRow(row);
+    return {success: true, message: "Data Siswa berhasil disimpan"};
+  }
+}
+
+function deleteStudent(data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Siswa');
+  if(!sheet) return {error: "Sheet 'Siswa' tidak ditemukan"};
+  
+  const nis = data['NIS'];
+  if (!nis) return {error: "NIS wajib disertakan untuk menghapus siswa"};
+  
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  const nisIndex = headers.indexOf('NIS');
+  
+  let rowIndex = -1;
+  for(let i=1; i<allData.length; i++) {
+    if(String(allData[i][nisIndex]) === String(nis)) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  
+  if (rowIndex > -1) {
+    sheet.deleteRow(rowIndex);
+    return {success: true, message: "Data Siswa berhasil dihapus"};
+  }
+  
+  return {error: "Data Siswa dengan NIS tersebut tidak ditemukan"};
 }
 
 // ==================== NILAI ====================
