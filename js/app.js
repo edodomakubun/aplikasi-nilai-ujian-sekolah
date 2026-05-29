@@ -20,6 +20,10 @@ function navigateTo(hash) {
         link.classList.remove('bg-blue-50', 'text-blue-700');
         link.classList.add('text-gray-600');
     });
+    document.querySelectorAll('.nav-link-mobile').forEach(link => {
+        link.classList.remove('text-blue-600');
+        link.classList.add('text-gray-500');
+    });
     
     const targetId = hash.replace('#', '') + '-content';
     const targetEl = document.getElementById(targetId);
@@ -28,11 +32,18 @@ function navigateTo(hash) {
         targetEl.classList.remove('hidden');
         targetEl.classList.add('block');
         
-        // Active Nav
+        // Active Nav Desktop
         const activeLink = document.querySelector(`.nav-link[href="${hash}"]`);
         if (activeLink) {
             activeLink.classList.remove('text-gray-600');
             activeLink.classList.add('bg-blue-50', 'text-blue-700');
+        }
+
+        // Active Nav Mobile
+        const activeLinkMobile = document.querySelector(`.nav-link-mobile[href="${hash}"]`);
+        if (activeLinkMobile) {
+            activeLinkMobile.classList.remove('text-gray-500');
+            activeLinkMobile.classList.add('text-blue-600');
         }
         
         // Refresh dashboard data if visiting dashboard

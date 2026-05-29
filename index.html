@@ -18,9 +18,7 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* SPA Views */
-        .spa-view { display: none; }
-        .spa-view.active { display: block; }
+        /* SPA Views will use Tailwind's hidden class for toggling instead of custom CSS */
         
         /* Login Background */
         .login-bg { background-image: url('https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop'); background-size: cover; background-position: center; }
@@ -34,7 +32,7 @@
     <!-- ============================================== -->
     <!-- VIEW 1: LOGIN PAGE                             -->
     <!-- ============================================== -->
-    <section id="login-view" class="spa-view w-full h-full relative login-bg">
+    <section id="login-view" class="w-full h-full relative login-bg hidden">
         <div class="absolute inset-0 bg-blue-900/40 backdrop-blur-sm"></div>
         <div class="w-full h-full flex items-center justify-center relative z-10 p-4">
             <div class="glass w-full max-w-md p-8 rounded-3xl shadow-2xl">
@@ -82,7 +80,7 @@
     <!-- ============================================== -->
     <!-- VIEW 2: MAIN DASHBOARD AREA                    -->
     <!-- ============================================== -->
-    <section id="app-view" class="spa-view w-full h-full flex flex-col md:flex-row">
+    <section id="app-view" class="w-full h-full flex-col md:flex-row hidden">
         
         <!-- Sidebar -->
         <aside class="w-64 glass border-r border-white/50 flex flex-col hidden md:flex z-20">

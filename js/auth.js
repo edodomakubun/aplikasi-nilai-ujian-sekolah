@@ -6,12 +6,16 @@ export function checkAuth() {
     if (loginView && appView) {
         if (!token) {
             // Not logged in -> Show Login, Hide App
-            loginView.classList.add('active');
-            appView.classList.remove('active');
+            loginView.classList.remove('hidden');
+            loginView.classList.add('block');
+            appView.classList.add('hidden');
+            appView.classList.remove('flex');
         } else {
             // Logged in -> Hide Login, Show App
-            loginView.classList.remove('active');
-            appView.classList.add('active');
+            loginView.classList.add('hidden');
+            loginView.classList.remove('block');
+            appView.classList.remove('hidden');
+            appView.classList.add('flex');
             
             // Trigger routing to initial view (dashboard)
             window.dispatchEvent(new Event('hashchange'));
