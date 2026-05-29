@@ -106,6 +106,8 @@ function deleteStudent(data) {
   const headers = allData[0];
   const nisIndex = headers.indexOf('NIS');
   
+  if (nisIndex === -1) return {error: "Kolom 'NIS' tidak ditemukan di Sheet Siswa"};
+  
   let rowIndex = -1;
   for(let i=1; i<allData.length; i++) {
     if(String(allData[i][nisIndex]) === String(nis)) {

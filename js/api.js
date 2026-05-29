@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbw3u0vtC-Z0CvisG3oc5G6xaeVFM5l4IiO_hDXz8CtIK-QvwAcMpNCcA9AtrkFQ71bBFQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw56RIQ9e0k-n120iflRRQm_iygKYrrw4_kSUP89g1-4pqJyM1LHh-HlDEzBKtQJ6dVfQ/exec';
 
 async function fetchAPI(action, method = 'GET', data = null) {
   if (API_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
