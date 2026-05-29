@@ -25,6 +25,8 @@ function doPost(e) {
     return createJsonResponse(saveStudent(data));
   } else if (action === 'saveGrade') {
     return createJsonResponse(saveGrade(data));
+  } else if (action === 'saveGradesBatch') {
+    return createJsonResponse(saveGradesBatch(data));
   } else if (action === 'login') {
     return createJsonResponse(loginUser(data));
   }
@@ -128,6 +130,43 @@ function saveGrade(data) {
   }
 }
 
+function saveGradesBatch(batchData) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Nilai');
+  if(!sheet) return {error: "Sheet 'Nilai' tidak ditemukan"};
+  
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  const nameIndex = headers.indexOf('NAMA SISWA');
+  const mapelIndex = headers.indexOf('MATA PELAJARAN');
+  
+  if (nameIndex === -1 || mapelIndex === -1) return {error: "Kolom 'NAMA SISWA' atau 'MATA PELAJARAN' tidak ditemukan di Sheet Nilai"};
+  
+  batchData.forEach(data => {
+    let rowIndex = -1;
+    for(let i=1; i<allData.length; i++) {
+      if(allData[i][nameIndex] === data['NAMA SISWA'] && allData[i][mapelIndex] === data['MATA PELAJARAN']) {
+        rowIndex = i + 1; // 1-based index untuk Spreadsheet
+        break;
+      }
+    }
+    
+    const row = [];
+    for(let i=0; i<headers.length; i++) {
+      row.push(data[headers[i]] !== undefined ? data[headers[i]] : "");
+    }
+    
+    if (rowIndex > -1) {
+      sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+      // Tambahkan ke allData agar loop selanjutnya bisa mendeteksi row baru jika ada duplikat di batch yg sama
+      allData.push(row); 
+    }
+  });
+  
+  return {success: true, message: "Seluruh Data Nilai berhasil disimpan!"};
+}
+
 // ==================== AUTO SETUP ====================
 function ensureSheetsExist() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -145,11 +184,19 @@ function ensureSheetsExist() {
   let sheetNilai = ss.getSheetByName('Nilai');
   if (!sheetNilai) {
     sheetNilai = ss.insertSheet('Nilai');
-    sheetNilai.appendRow(['NO', 'NAMA SISWA', '7', '8', '9', '10', '11', 'JML', 'RATA-RATA NR', 'BOBOT 40%', 'Tulis', 'Praktik', 'Rata-Rata', 'BOBOT 60%', 'NILAI SEKOLAH']);
+    sheetNilai.appendRow(['MATA PELAJARAN', 'NO', 'NAMA SISWA', '7', '8', '9', '10', '11', 'JML', 'RATA-RATA NR', 'BOBOT 40%', 'Tulis', 'Praktik', 'Rata-Rata', 'BOBOT 60%', 'NILAI SEKOLAH']);
     try {
-      sheetNilai.getRange('A1:O1').setFontWeight('bold').setBackground('#f3f3f3');
+      sheetNilai.getRange('A1:P1').setFontWeight('bold').setBackground('#f3f3f3');
       sheetNilai.setFrozenRows(1);
     } catch(e) {}
+  } else {
+    // Pastikan MATA PELAJARAN ada di kolom A, jika tidak ada, kita sisipkan
+    let headers = sheetNilai.getDataRange().getValues()[0];
+    if (headers && headers[0] !== 'MATA PELAJARAN') {
+      sheetNilai.insertColumnBefore(1);
+      sheetNilai.getRange('A1').setValue('MATA PELAJARAN');
+      try { sheetNilai.getRange('A1').setFontWeight('bold').setBackground('#f3f3f3'); } catch(e){}
+    }
   }
 
   let sheetUsers = ss.getSheetByName('Users');

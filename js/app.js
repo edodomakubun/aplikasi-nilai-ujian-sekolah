@@ -3,6 +3,7 @@ import { logout, checkAuth } from './auth.js';
 
 let rawData = [];
 let rawStudents = [];
+let currentSubject = 'PENDIDIKAN AGAMA KRISTEN';
 
 // ==========================================
 // ROUTER & NAVIGATION
@@ -150,104 +151,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Cari Siswa
-    document.getElementById('searchSiswaInput')?.addEventListener('input', (e) => {
-        renderStudentsForNilai(e.target.value);
-    });
-    
-    // Refresh Daftar Siswa
-    document.getElementById('refreshSiswaBtn')?.addEventListener('click', () => {
-        fetchStudentsForNilai();
-    });
-
-    // Batal Pilih Siswa
-    document.getElementById('batalPilihBtn')?.addEventListener('click', () => {
-        document.getElementById('nilaiForm').reset();
-        document.getElementById('nilaiFormOverlay').classList.remove('hidden');
-    });
-
-    // Input Nilai Kalkulasi
-    document.querySelectorAll('.calc-trigger').forEach(input => {
-        input.addEventListener('input', () => {
-            const n7 = parseFloat(document.getElementById('N_7').value) || 0;
-            const n8 = parseFloat(document.getElementById('N_8').value) || 0;
-            const n9 = parseFloat(document.getElementById('N_9').value) || 0;
-            const n10 = parseFloat(document.getElementById('N_10').value) || 0;
-            const n11 = parseFloat(document.getElementById('N_11').value) || 0;
-
-            const jml = n7 + n8 + n9 + n10 + n11;
-            const rataNr = jml / 5;
-            const bobot40 = rataNr * 0.4;
-
-            document.getElementById('JML').value = jml > 0 ? jml.toFixed(2) : '';
-            document.getElementById('RATA_NR').value = rataNr > 0 ? rataNr.toFixed(2) : '';
-            document.getElementById('BOBOT_40').value = bobot40 > 0 ? bobot40.toFixed(2) : '';
-
-            const tulis = parseFloat(document.getElementById('TULIS').value) || 0;
-            const praktik = parseFloat(document.getElementById('PRAKTIK').value) || 0;
-            
-            const rataUs = (tulis + praktik) / 2;
-            const bobot60 = rataUs * 0.6;
-
-            document.getElementById('RATA_US').value = rataUs > 0 ? rataUs.toFixed(2) : '';
-            document.getElementById('BOBOT_60').value = bobot60 > 0 ? bobot60.toFixed(2) : '';
-
-            if(bobot40 > 0 && bobot60 > 0) {
-                document.getElementById('NILAI_SEKOLAH').value = (bobot40 + bobot60).toFixed(2);
-            } else {
-                document.getElementById('NILAI_SEKOLAH').value = '';
-            }
+    // Subject Tabs Event Listener
+    document.querySelectorAll('.mapel-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.mapel-btn').forEach(b => {
+                b.classList.remove('active-mapel', 'border-blue-200', 'bg-blue-50', 'text-blue-700');
+                b.classList.add('border-gray-200', 'bg-white', 'text-gray-600');
+            });
+            e.target.classList.remove('border-gray-200', 'bg-white', 'text-gray-600');
+            e.target.classList.add('active-mapel', 'border-blue-200', 'bg-blue-50', 'text-blue-700');
+            currentSubject = e.target.getAttribute('data-mapel');
+            renderStudentsForNilai();
         });
     });
 
-    // Input Nilai Submit
-    const nilaiForm = document.getElementById('nilaiForm');
-    if (nilaiForm) {
-        nilaiForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submitNilaiBtn');
-            const msg = document.getElementById('statusNilai');
+    // Batch Save Button
+    const batchSaveBtn = document.getElementById('batchSaveBtn');
+    if (batchSaveBtn) {
+        batchSaveBtn.addEventListener('click', async () => {
+            const btn = batchSaveBtn;
+            const msg = document.getElementById('batchSaveStatus');
             
-            const data = {
-                'NO': document.getElementById('NO').value,
-                'NAMA SISWA': document.getElementById('NAMA_SISWA').value,
-                '7': document.getElementById('N_7').value,
-                '8': document.getElementById('N_8').value,
-                '9': document.getElementById('N_9').value,
-                '10': document.getElementById('N_10').value,
-                '11': document.getElementById('N_11').value,
-                'JML': document.getElementById('JML').value,
-                'RATA-RATA NR': document.getElementById('RATA_NR').value,
-                'BOBOT 40%': document.getElementById('BOBOT_40').value,
-                'Tulis': document.getElementById('TULIS').value,
-                'Praktik': document.getElementById('PRAKTIK').value,
-                'Rata-Rata': document.getElementById('RATA_US').value,
-                'BOBOT 60%': document.getElementById('BOBOT_60').value,
-                'NILAI SEKOLAH': document.getElementById('NILAI_SEKOLAH').value
-            };
+            // Kumpulkan semua data dari tabel
+            const batchData = [];
+            const rows = document.querySelectorAll('#spreadsheetBody tr');
+            rows.forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs.length === 0) return; // ignore loading row or empty
+                
+                const getVal = (className) => {
+                    const el = tr.querySelector('.' + className);
+                    return el ? el.value : '';
+                };
+
+                const data = {
+                    'MATA PELAJARAN': currentSubject,
+                    'NO': tr.querySelector('.cell-no').innerText,
+                    'NAMA SISWA': tr.querySelector('.cell-nama').innerText,
+                    '7': getVal('inp-7'),
+                    '8': getVal('inp-8'),
+                    '9': getVal('inp-9'),
+                    '10': getVal('inp-10'),
+                    '11': getVal('inp-11'),
+                    'JML': getVal('out-jml'),
+                    'RATA-RATA NR': getVal('out-rata-nr'),
+                    'BOBOT 40%': getVal('out-bobot40'),
+                    'Tulis': getVal('inp-tulis'),
+                    'Praktik': getVal('inp-praktik'),
+                    'Rata-Rata': getVal('out-rata-us'),
+                    'BOBOT 60%': getVal('out-bobot60'),
+                    'NILAI SEKOLAH': getVal('out-akhir')
+                };
+                
+                // Pastikan ada isinya (jika semua kosong tidak usah di-save)
+                if (data['7'] || data['8'] || data['9'] || data['10'] || data['11'] || data['Tulis'] || data['Praktik']) {
+                    batchData.push(data);
+                }
+            });
+
+            if (batchData.length === 0) {
+                msg.innerHTML = '<span class="text-red-500">Tidak ada data untuk disimpan.</span>';
+                return;
+            }
 
             btn.disabled = true;
             btn.innerHTML = 'Menyimpan...';
-            msg.className = 'hidden rounded-lg p-4 mt-4 text-sm font-medium';
+            msg.innerHTML = '<span class="text-blue-500">Sedang menyimpan data...</span>';
 
-            const result = await api.saveGrade(data);
+            const result = await api.saveGradesBatch(batchData);
 
             btn.disabled = false;
-            btn.innerHTML = 'Simpan Data Nilai';
+            btn.innerHTML = 'SIMPAN SELURUH NILAI';
 
-            msg.classList.remove('hidden');
             if (result && result.success) {
-                msg.classList.add('bg-green-100', 'text-green-700');
-                msg.innerText = "Berhasil: " + result.message;
-                nilaiForm.reset();
-                document.getElementById('nilaiFormOverlay').classList.remove('hidden');
-                // Refresh data
-                fetchData();
-                fetchStudentsForNilai();
+                msg.innerHTML = '<span class="text-green-600">Berhasil: ' + result.message + '</span>';
+                fetchData(); // refresh data
             } else {
-                msg.classList.add('bg-red-100', 'text-red-700');
-                msg.innerText = "Gagal: " + (result ? result.error : "Terjadi kesalahan");
+                msg.innerHTML = '<span class="text-red-500">Gagal: ' + (result ? result.error : "Kesalahan server") + '</span>';
             }
+            
+            setTimeout(() => { msg.innerHTML = ''; }, 3000);
         });
     }
 
@@ -374,13 +357,10 @@ function renderTable(searchQuery) {
 // INPUT NILAI: STUDENT LIST FETCHING
 // ==========================================
 async function fetchStudentsForNilai() {
-    const list = document.getElementById('siswaListNilai');
-    list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>Memuat daftar siswa...</li>';
+    const tbody = document.getElementById('spreadsheetBody');
+    if(tbody) tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-gray-500">Memuat data...</td></tr>';
     
-    // Fetch students
     const result = await api.getStudents();
-    
-    // Also fetch grades to check if they already have grades
     const gradesResult = await api.getGrades();
     
     if (result && !result.error) {
@@ -388,93 +368,176 @@ async function fetchStudentsForNilai() {
         if (gradesResult && !gradesResult.error) {
             rawData = gradesResult.data || [];
         }
-        renderStudentsForNilai('');
+        renderStudentsForNilai();
     } else {
-        list.innerHTML = '<li class="p-6 text-center text-red-500 text-sm">Gagal memuat daftar siswa.</li>';
+        if(tbody) tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-red-500">Gagal memuat data.</td></tr>';
     }
 }
 
-function renderStudentsForNilai(searchQuery) {
-    const list = document.getElementById('siswaListNilai');
+function renderStudentsForNilai() {
+    const tbody = document.getElementById('spreadsheetBody');
+    if (!tbody) return;
+    
     if (rawStudents.length === 0) {
-        list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm">Belum ada data siswa. Input siswa terlebih dahulu.</li>';
-        return;
-    }
-
-    const filtered = rawStudents.filter(row => {
-        const name = (row['NAMA PESERTA'] || '').toLowerCase();
-        return name.includes(searchQuery.toLowerCase());
-    });
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<li class="p-6 text-center text-gray-500 text-sm">Siswa tidak ditemukan.</li>';
+        tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-gray-500">Belum ada data siswa. Input siswa terlebih dahulu.</td></tr>';
         return;
     }
 
     let html = '';
-    filtered.forEach((row, idx) => {
+    rawStudents.forEach((row, idx) => {
         const nama = row['NAMA PESERTA'];
         const no = row['NO URUT'] || (idx + 1);
         
-        // Cek apakah siswa ini sudah ada di sheet Nilai
-        const hasGrades = rawData.some(g => g['NAMA SISWA'] === nama && parseFloat(g['NILAI SEKOLAH']) > 0);
-        
-        const badge = hasGrades 
-            ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Sudah Dinilai</span>'
-            : '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Belum Dinilai</span>';
+        // Find existing grade for this subject
+        const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === currentSubject) || {};
 
+        const v7 = existingGrade['7'] || '';
+        const v8 = existingGrade['8'] || '';
+        const v9 = existingGrade['9'] || '';
+        const v10 = existingGrade['10'] || '';
+        const v11 = existingGrade['11'] || '';
+        const vTulis = existingGrade['Tulis'] || '';
+        const vPrak = existingGrade['Praktik'] || '';
+        
         html += `
-            <li class="p-4 hover:bg-blue-50/50 transition-colors border-b border-gray-50 flex items-center justify-between cursor-pointer" onclick="selectStudentForNilai('${no}', \`${nama.replace(/`/g, '')}\`)">
-                <div>
-                    <p class="text-sm font-bold text-gray-900">${nama}</p>
-                    <p class="text-xs text-gray-500 mt-1">No Urut: ${no}</p>
-                </div>
-                <div class="flex flex-col items-end gap-2">
-                    ${badge}
-                    <button type="button" class="text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors border border-blue-200">
-                        Input
-                    </button>
-                </div>
-            </li>
+            <tr class="hover:bg-blue-50/30 transition-colors">
+                <td class="border border-gray-300 px-2 py-1 text-center text-gray-700 font-medium cell-no">${no}</td>
+                <td class="border border-gray-300 px-3 py-1 font-medium text-gray-900 cell-nama">${nama}</td>
+                
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v7}" class="row-calc inp-7 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v8}" class="row-calc inp-8 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v9}" class="row-calc inp-9 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v10}" class="row-calc inp-10 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v11}" class="row-calc inp-11 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                
+                <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-jml w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
+                <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-rata-nr w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
+                <td class="border border-gray-300 p-0 bg-yellow-100"><input type="text" readonly class="out-bobot40 w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-blue-700"></td>
+                
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${vTulis}" class="row-calc inp-tulis w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${vPrak}" class="row-calc inp-praktik w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                
+                <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-rata-us w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
+                <td class="border border-gray-300 p-0 bg-yellow-100"><input type="text" readonly class="out-bobot60 w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-purple-700"></td>
+                
+                <td class="border border-gray-300 p-0 bg-yellow-200"><input type="text" readonly class="out-akhir w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-gray-900 text-sm"></td>
+            </tr>
         `;
     });
-    list.innerHTML = html;
+    tbody.innerHTML = html;
+    
+    // Attach event listeners for calculations
+    attachSpreadsheetCalculations();
 }
 
-// Terkspos ke window agar bisa dipanggil via inline onclick
-window.selectStudentForNilai = function(no, nama) {
-    document.getElementById('NO').value = no;
-    document.getElementById('NAMA_SISWA').value = nama;
+function attachSpreadsheetCalculations() {
+    const rows = document.querySelectorAll('#spreadsheetBody tr');
     
-    document.getElementById('namaSiswaDisplay').innerText = nama;
-    document.getElementById('noUrutDisplay').innerText = `No Urut: ${no}`;
-    document.getElementById('avatarSiswa').innerText = nama.charAt(0).toUpperCase();
-    
-    // Tampilkan tombol Batal
-    document.getElementById('batalPilihBtn').classList.remove('hidden');
-    document.getElementById('batalPilihBtn').classList.add('block');
-    
-    // Sembunyikan Overlay
-    document.getElementById('nilaiFormOverlay').classList.add('hidden');
-    
-    // Auto-fill jika data nilai sudah ada
-    const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama);
-    if (existingGrade) {
-        document.getElementById('N_7').value = existingGrade['7'] || '';
-        document.getElementById('N_8').value = existingGrade['8'] || '';
-        document.getElementById('N_9').value = existingGrade['9'] || '';
-        document.getElementById('N_10').value = existingGrade['10'] || '';
-        document.getElementById('N_11').value = existingGrade['11'] || '';
-        document.getElementById('TULIS').value = existingGrade['Tulis'] || '';
-        document.getElementById('PRAKTIK').value = existingGrade['Praktik'] || '';
-        
-        // Trigger perhitungan kalkulasi dengan mengirim event 'input' ke salah satu trigger
-        document.getElementById('N_7').dispatchEvent(new Event('input'));
-    } else {
-        // Kosongkan form nilai
-        ['N_7','N_8','N_9','N_10','N_11','TULIS','PRAKTIK'].forEach(id => {
-            document.getElementById(id).value = '';
+    rows.forEach(tr => {
+        const inputs = tr.querySelectorAll('.row-calc');
+        inputs.forEach(inp => {
+            inp.addEventListener('input', () => {
+                calculateRow(tr);
+                calculateFooter();
+            });
         });
-        document.getElementById('N_7').dispatchEvent(new Event('input'));
+        
+        // Initial Calculation
+        calculateRow(tr);
+    });
+    
+    calculateFooter();
+}
+
+function calculateRow(tr) {
+    const getVal = (className) => parseFloat(tr.querySelector('.' + className).value) || 0;
+    
+    const n7 = getVal('inp-7');
+    const n8 = getVal('inp-8');
+    const n9 = getVal('inp-9');
+    const n10 = getVal('inp-10');
+    const n11 = getVal('inp-11');
+    
+    let jml = 0;
+    let countNr = 0;
+    [n7, n8, n9, n10, n11].forEach(v => {
+        if(tr.querySelector('.inp-7').value !== '' && v===n7) { jml+=v; countNr++; }
+        else if(tr.querySelector('.inp-8').value !== '' && v===n8) { jml+=v; countNr++; }
+        else if(tr.querySelector('.inp-9').value !== '' && v===n9) { jml+=v; countNr++; }
+        else if(tr.querySelector('.inp-10').value !== '' && v===n10) { jml+=v; countNr++; }
+        else if(tr.querySelector('.inp-11').value !== '' && v===n11) { jml+=v; countNr++; }
+    });
+    
+    // Assume denominator is always 5 for Rapor based on screenshot
+    const rataNr = (n7 || n8 || n9 || n10 || n11) ? (n7+n8+n9+n10+n11) / 5 : 0;
+    const bobot40 = rataNr * 0.4;
+    
+    tr.querySelector('.out-jml').value = (n7||n8||n9||n10||n11) ? jml.toFixed(2) : '';
+    tr.querySelector('.out-rata-nr').value = rataNr > 0 ? rataNr.toFixed(2) : '';
+    tr.querySelector('.out-bobot40').value = bobot40 > 0 ? bobot40.toFixed(2) : '';
+    
+    const tulis = getVal('inp-tulis');
+    const prak = getVal('inp-praktik');
+    const rataUs = (tr.querySelector('.inp-tulis').value || tr.querySelector('.inp-praktik').value) ? (tulis + prak) / 2 : 0;
+    const bobot60 = rataUs * 0.6;
+    
+    tr.querySelector('.out-rata-us').value = rataUs > 0 ? rataUs.toFixed(2) : '';
+    tr.querySelector('.out-bobot60').value = bobot60 > 0 ? bobot60.toFixed(2) : '';
+    
+    if (bobot40 > 0 && bobot60 > 0) {
+        tr.querySelector('.out-akhir').value = (bobot40 + bobot60).toFixed(2);
+    } else {
+        tr.querySelector('.out-akhir').value = '';
     }
-};
+}
+
+function calculateFooter() {
+    const tfoot = document.getElementById('spreadsheetFooter');
+    if (!tfoot) return;
+    
+    const columns = [
+        'inp-7', 'inp-8', 'inp-9', 'inp-10', 'inp-11', 'out-jml', 'out-rata-nr', 'out-bobot40',
+        'inp-tulis', 'inp-praktik', 'out-rata-us', 'out-bobot60', 'out-akhir'
+    ];
+    
+    const stats = {};
+    columns.forEach(c => stats[c] = { sum: 0, min: 99999, max: -99999, count: 0 });
+    
+    const rows = document.querySelectorAll('#spreadsheetBody tr');
+    rows.forEach(tr => {
+        columns.forEach(c => {
+            const input = tr.querySelector('.' + c);
+            if (input && input.value !== '') {
+                const val = parseFloat(input.value);
+                if (!isNaN(val)) {
+                    stats[c].sum += val;
+                    stats[c].count++;
+                    if (val < stats[c].min) stats[c].min = val;
+                    if (val > stats[c].max) stats[c].max = val;
+                }
+            }
+        });
+    });
+    
+    const getStat = (col, type) => {
+        if (stats[col].count === 0) return '';
+        if (type === 'min') return stats[col].min.toFixed(2);
+        if (type === 'max') return stats[col].max.toFixed(2);
+        if (type === 'avg') return (stats[col].sum / stats[col].count).toFixed(2);
+    };
+    
+    tfoot.innerHTML = `
+        <tr>
+            <td colspan="2" class="border border-gray-300 px-4 py-2 text-right bg-white">NILAI TERENDAH</td>
+            ${columns.map(c => `<td class="border border-gray-300 px-2 py-2 text-center text-red-600 bg-yellow-100/50">${getStat(c, 'min')}</td>`).join('')}
+        </tr>
+        <tr>
+            <td colspan="2" class="border border-gray-300 px-4 py-2 text-right bg-white">NILAI RATA-RATA</td>
+            ${columns.map(c => `<td class="border border-gray-300 px-2 py-2 text-center text-blue-600 bg-yellow-100/50">${getStat(c, 'avg')}</td>`).join('')}
+        </tr>
+        <tr>
+            <td colspan="2" class="border border-gray-300 px-4 py-2 text-right bg-white">NILAI TERTINGGI</td>
+            ${columns.map(c => `<td class="border border-gray-300 px-2 py-2 text-center text-green-600 bg-yellow-100/50">${getStat(c, 'max')}</td>`).join('')}
+        </tr>
+    `;
+}
