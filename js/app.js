@@ -3,6 +3,7 @@ import { logout, checkAuth } from './auth.js';
 
 let rawData = [];
 let rawStudents = [];
+let dashboardData = [];
 let currentSubject = 'PENDIDIKAN AGAMA KRISTEN';
 
 // ==========================================
@@ -56,7 +57,6 @@ function navigateTo(hash) {
         // Load daftar siswa jika masuk ke menu input nilai
         if (hash === '#nilai') {
             fetchStudentsForNilai();
-            document.getElementById('nilaiFormOverlay').classList.remove('hidden');
         }
     }
 }
@@ -225,7 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result && result.success) {
                 msg.innerHTML = '<span class="text-green-600">Berhasil: ' + result.message + '</span>';
-                fetchData(); // refresh data
+                fetchData(); // refresh dashboard data in background
+                fetchStudentsForNilai(); // refresh current spreadsheet data
             } else {
                 msg.innerHTML = '<span class="text-red-500">Gagal: ' + (result ? result.error : "Kesalahan server") + '</span>';
             }
@@ -247,14 +248,54 @@ async function fetchData() {
     content.classList.add('hidden');
 
     const result = await api.getGrades();
+    const studentsResult = await api.getStudents();
+    
+    if (studentsResult && !studentsResult.error) {
+        rawStudents = studentsResult.data || [];
+    }
     
     loader.classList.add('hidden');
     content.classList.remove('hidden');
 
     if (result && !result.error) {
         rawData = result.data || [];
-        processStats(rawData);
-        renderRanking(rawData);
+        
+        // Agregasi nilai rata-rata tiap siswa dari semua mata pelajaran
+        const studentGrades = {};
+        rawData.forEach(row => {
+            const name = row['NAMA SISWA'];
+            if (!studentGrades[name]) {
+                studentGrades[name] = { count: 0, sumNR: 0, sumUS: 0, sumAkhir: 0, 'NAMA SISWA': name };
+            }
+            const nr = parseFloat(row['RATA-RATA NR']);
+            const us = parseFloat(row['Rata-Rata']); 
+            const akhir = parseFloat(row['NILAI SEKOLAH']);
+            
+            if (!isNaN(akhir) && akhir > 0) {
+                studentGrades[name].sumNR += nr;
+                studentGrades[name].sumUS += us;
+                studentGrades[name].sumAkhir += akhir;
+                studentGrades[name].count++;
+            }
+        });
+        
+        dashboardData = [];
+        let index = 1;
+        for (let name in studentGrades) {
+            const st = studentGrades[name];
+            if (st.count > 0) {
+                dashboardData.push({
+                    'NO': index++,
+                    'NAMA SISWA': name,
+                    'RATA-RATA NR': (st.sumNR / st.count).toFixed(2),
+                    'Rata-Rata': (st.sumUS / st.count).toFixed(2),
+                    'NILAI SEKOLAH': (st.sumAkhir / st.count).toFixed(2)
+                });
+            }
+        }
+
+        processStats(dashboardData);
+        renderRanking(dashboardData);
         renderTable('');
     } else {
         document.getElementById('gradesTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500">Gagal memuat data. Periksa koneksi atau URL API.</td></tr>`;
@@ -262,9 +303,7 @@ async function fetchData() {
 }
 
 function processStats(data) {
-    if (data.length === 0) return;
-
-    document.getElementById('statTotalSiswa').innerText = data.length;
+    document.getElementById('statTotalSiswa').innerText = rawStudents.length || data.length;
 
     let totalUs = 0;
     let highest = 0;
@@ -323,30 +362,30 @@ function renderRanking(data) {
 
 function renderTable(searchQuery) {
     const tbody = document.getElementById('gradesTableBody');
-    if (rawData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data.</td></tr>';
+    if (dashboardData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data nilai.</td></tr>`;
         return;
     }
 
-    const filtered = rawData.filter(row => {
+    const filtered = dashboardData.filter(row => {
         const name = (row['NAMA SISWA'] || '').toLowerCase();
         return name.includes(searchQuery.toLowerCase());
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Siswa tidak ditemukan.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Data tidak ditemukan.</td></tr>`;
         return;
     }
 
     let html = '';
     filtered.forEach((row, idx) => {
         html += `
-            <tr class="hover:bg-white/50 transition-colors">
-                <td class="px-6 py-4 text-gray-500">${row['NO'] || (idx+1)}</td>
-                <td class="px-6 py-4 font-medium text-gray-900">${row['NAMA SISWA']}</td>
-                <td class="px-6 py-4 text-center text-gray-600">${parseFloat(row['RATA-RATA NR']||0).toFixed(2)}</td>
-                <td class="px-6 py-4 text-center text-gray-600">${parseFloat(row['Rata-Rata']||0).toFixed(2)}</td>
-                <td class="px-6 py-4 text-center font-bold text-blue-600 bg-blue-50/30">${parseFloat(row['NILAI SEKOLAH']||0).toFixed(2)}</td>
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${idx + 1}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${row['NAMA SISWA']}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">${row['RATA-RATA NR'] || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">${row['Rata-Rata'] || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-gray-900 bg-gray-50/50">${row['NILAI SEKOLAH'] || '-'}</td>
             </tr>
         `;
     });
@@ -458,18 +497,11 @@ function calculateRow(tr) {
     const n10 = getVal('inp-10');
     const n11 = getVal('inp-11');
     
-    let jml = 0;
-    let countNr = 0;
-    [n7, n8, n9, n10, n11].forEach(v => {
-        if(tr.querySelector('.inp-7').value !== '' && v===n7) { jml+=v; countNr++; }
-        else if(tr.querySelector('.inp-8').value !== '' && v===n8) { jml+=v; countNr++; }
-        else if(tr.querySelector('.inp-9').value !== '' && v===n9) { jml+=v; countNr++; }
-        else if(tr.querySelector('.inp-10').value !== '' && v===n10) { jml+=v; countNr++; }
-        else if(tr.querySelector('.inp-11').value !== '' && v===n11) { jml+=v; countNr++; }
-    });
+    const hasRapor = [7, 8, 9, 10, 11].some(sem => tr.querySelector('.inp-' + sem).value !== '');
+    const jml = n7 + n8 + n9 + n10 + n11;
     
     // Assume denominator is always 5 for Rapor based on screenshot
-    const rataNr = (n7 || n8 || n9 || n10 || n11) ? (n7+n8+n9+n10+n11) / 5 : 0;
+    const rataNr = hasRapor ? (jml / 5) : 0;
     const bobot40 = rataNr * 0.4;
     
     tr.querySelector('.out-jml').value = (n7||n8||n9||n10||n11) ? jml.toFixed(2) : '';
@@ -478,7 +510,8 @@ function calculateRow(tr) {
     
     const tulis = getVal('inp-tulis');
     const prak = getVal('inp-praktik');
-    const rataUs = (tr.querySelector('.inp-tulis').value || tr.querySelector('.inp-praktik').value) ? (tulis + prak) / 2 : 0;
+    const hasUs = tr.querySelector('.inp-tulis').value !== '' || tr.querySelector('.inp-praktik').value !== '';
+    const rataUs = hasUs ? (tulis + prak) / 2 : 0;
     const bobot60 = rataUs * 0.6;
     
     tr.querySelector('.out-rata-us').value = rataUs > 0 ? rataUs.toFixed(2) : '';

@@ -77,33 +77,43 @@ function saveStudent(data) {
 
 // ==================== NILAI ====================
 function getGrades() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Nilai');
-  if(!sheet) return {error: "Sheet 'Nilai' tidak ditemukan"};
-  const data = sheet.getDataRange().getValues();
-  if(data.length <= 1) return {data: []};
-  
-  const headers = data[0];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
   const result = [];
-  for(let i = 1; i < data.length; i++) {
-    let row = data[i];
-    let obj = {};
-    for(let j = 0; j < headers.length; j++) {
-      obj[headers[j]] = row[j];
+  
+  subjects.forEach(subject => {
+    const sheet = ss.getSheetByName(subject);
+    if(sheet) {
+      const data = sheet.getDataRange().getValues();
+      if(data.length > 1) {
+        const headers = data[0];
+        for(let i = 1; i < data.length; i++) {
+          let row = data[i];
+          let obj = {};
+          for(let j = 0; j < headers.length; j++) {
+            obj[headers[j]] = row[j];
+          }
+          obj['MATA PELAJARAN'] = subject; // Inject subject name for frontend
+          result.push(obj);
+        }
+      }
     }
-    result.push(obj);
-  }
+  });
+  
   return {data: result};
 }
 
 function saveGrade(data) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Nilai');
-  if(!sheet) return {error: "Sheet 'Nilai' tidak ditemukan"};
+  const mapel = data['MATA PELAJARAN'];
+  if(!mapel) return {error: "Kolom MATA PELAJARAN wajib disertakan"};
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(mapel);
+  if(!sheet) return {error: "Sheet Mata Pelajaran '" + mapel + "' tidak ditemukan"};
   
   const allData = sheet.getDataRange().getValues();
   const headers = allData[0];
   const nameIndex = headers.indexOf('NAMA SISWA');
   
-  if (nameIndex === -1) return {error: "Kolom 'NAMA SISWA' tidak ditemukan di Sheet Nilai"};
+  if (nameIndex === -1) return {error: "Kolom 'NAMA SISWA' tidak ditemukan di Sheet " + mapel};
   
   let rowIndex = -1;
   for(let i=1; i<allData.length; i++) {
@@ -115,36 +125,35 @@ function saveGrade(data) {
   
   const row = [];
   for(let i=0; i<headers.length; i++) {
-    // Jika data adalah null/undefined, biarkan kosong. Tapi jika ada, gunakan.
     row.push(data[headers[i]] !== undefined ? data[headers[i]] : "");
   }
   
   if (rowIndex > -1) {
-    // Update data jika NAMA SISWA sudah ada
     sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
     return {success: true, message: "Data Nilai berhasil diperbarui"};
   } else {
-    // Insert baru
     sheet.appendRow(row);
     return {success: true, message: "Data Nilai berhasil disimpan"};
   }
 }
 
 function saveGradesBatch(batchData) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Nilai');
-  if(!sheet) return {error: "Sheet 'Nilai' tidak ditemukan"};
+  if (!batchData || batchData.length === 0) return {error: "Data kosong"};
+  
+  const mapel = batchData[0]['MATA PELAJARAN'];
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(mapel);
+  if(!sheet) return {error: "Sheet Mata Pelajaran '" + mapel + "' tidak ditemukan"};
   
   const allData = sheet.getDataRange().getValues();
   const headers = allData[0];
   const nameIndex = headers.indexOf('NAMA SISWA');
-  const mapelIndex = headers.indexOf('MATA PELAJARAN');
   
-  if (nameIndex === -1 || mapelIndex === -1) return {error: "Kolom 'NAMA SISWA' atau 'MATA PELAJARAN' tidak ditemukan di Sheet Nilai"};
+  if (nameIndex === -1) return {error: "Kolom 'NAMA SISWA' tidak ditemukan di Sheet " + mapel};
   
   batchData.forEach(data => {
     let rowIndex = -1;
     for(let i=1; i<allData.length; i++) {
-      if(allData[i][nameIndex] === data['NAMA SISWA'] && allData[i][mapelIndex] === data['MATA PELAJARAN']) {
+      if(allData[i][nameIndex] === data['NAMA SISWA']) {
         rowIndex = i + 1; // 1-based index untuk Spreadsheet
         break;
       }
@@ -157,14 +166,14 @@ function saveGradesBatch(batchData) {
     
     if (rowIndex > -1) {
       sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+      allData[rowIndex - 1] = row; // Update memori
     } else {
       sheet.appendRow(row);
-      // Tambahkan ke allData agar loop selanjutnya bisa mendeteksi row baru jika ada duplikat di batch yg sama
       allData.push(row); 
     }
   });
   
-  return {success: true, message: "Seluruh Data Nilai berhasil disimpan!"};
+  return {success: true, message: "Seluruh Data Nilai berhasil disimpan di Sheet " + mapel};
 }
 
 // ==================== AUTO SETUP ====================
@@ -181,23 +190,18 @@ function ensureSheetsExist() {
     } catch(e) {}
   }
   
-  let sheetNilai = ss.getSheetByName('Nilai');
-  if (!sheetNilai) {
-    sheetNilai = ss.insertSheet('Nilai');
-    sheetNilai.appendRow(['MATA PELAJARAN', 'NO', 'NAMA SISWA', '7', '8', '9', '10', '11', 'JML', 'RATA-RATA NR', 'BOBOT 40%', 'Tulis', 'Praktik', 'Rata-Rata', 'BOBOT 60%', 'NILAI SEKOLAH']);
-    try {
-      sheetNilai.getRange('A1:P1').setFontWeight('bold').setBackground('#f3f3f3');
-      sheetNilai.setFrozenRows(1);
-    } catch(e) {}
-  } else {
-    // Pastikan MATA PELAJARAN ada di kolom A, jika tidak ada, kita sisipkan
-    let headers = sheetNilai.getDataRange().getValues()[0];
-    if (headers && headers[0] !== 'MATA PELAJARAN') {
-      sheetNilai.insertColumnBefore(1);
-      sheetNilai.getRange('A1').setValue('MATA PELAJARAN');
-      try { sheetNilai.getRange('A1').setFontWeight('bold').setBackground('#f3f3f3'); } catch(e){}
+  const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+  subjects.forEach(subject => {
+    let sheetNilai = ss.getSheetByName(subject);
+    if (!sheetNilai) {
+      sheetNilai = ss.insertSheet(subject);
+      sheetNilai.appendRow(['NO', 'NAMA SISWA', '7', '8', '9', '10', '11', 'JML', 'RATA-RATA NR', 'BOBOT 40%', 'Tulis', 'Praktik', 'Rata-Rata', 'BOBOT 60%', 'NILAI SEKOLAH']);
+      try {
+        sheetNilai.getRange('A1:O1').setFontWeight('bold').setBackground('#f3f3f3');
+        sheetNilai.setFrozenRows(1);
+      } catch(e) {}
     }
-  }
+  });
 
   let sheetUsers = ss.getSheetByName('Users');
   if (!sheetUsers) {
