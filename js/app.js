@@ -719,9 +719,43 @@ document.addEventListener('DOMContentLoaded', () => {
             exportBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div> Mengekspor...';
             exportBtn.disabled = true;
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 try {
-                    const wb = XLSX.utils.book_new();
+                    const workbook = new ExcelJS.Workbook();
+                    workbook.creator = 'EduGrade';
+                    workbook.lastModifiedBy = 'EduGrade';
+                    workbook.created = new Date();
+                    workbook.modified = new Date();
+
+                    // Fungsi helper untuk style header
+                    const styleHeader = (worksheet, endColIndex) => {
+                        const row = worksheet.getRow(1);
+                        for(let i=1; i<=endColIndex; i++) {
+                            const cell = row.getCell(i);
+                            cell.font = { bold: true, color: { argb: 'FF000000' } };
+                            cell.fill = {
+                                type: 'pattern',
+                                pattern: 'solid',
+                                fgColor: { argb: 'FFE5E7EB' } // Gray-200
+                            };
+                            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                            cell.border = {
+                                top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
+                            };
+                        }
+                        row.height = 30;
+                    };
+
+                    const applyBorders = (worksheet, rowCount, colCount) => {
+                        for(let i=2; i<=rowCount; i++) {
+                            const row = worksheet.getRow(i);
+                            for(let j=1; j<=colCount; j++) {
+                                row.getCell(j).border = {
+                                    top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
+                                };
+                            }
+                        }
+                    };
 
                     // 1. Sheet 10 Besar Rangking
                     const sortedTop10 = [...dashboardData]
@@ -729,73 +763,141 @@ document.addEventListener('DOMContentLoaded', () => {
                         .sort((a, b) => parseFloat(b['NILAI SEKOLAH']) - parseFloat(a['NILAI SEKOLAH']))
                         .slice(0, 10);
                     
-                    const top10Data = sortedTop10.map((item, idx) => ({
-                        'Peringkat': idx + 1,
-                        'Nama Siswa': item['NAMA SISWA'],
-                        'Rata-rata NR': item['RATA-RATA NR'],
-                        'Rata-rata US': item['Rata-Rata'],
-                        'Nilai Akhir Sekolah': item['NILAI SEKOLAH']
-                    }));
-                    
-                    const wsTop10 = XLSX.utils.json_to_sheet(top10Data);
-                    XLSX.utils.book_append_sheet(wb, wsTop10, "10 Besar Rangking");
+                    const wsTop10 = workbook.addWorksheet("10 Besar Rangking");
+                    wsTop10.columns = [
+                        { header: 'Peringkat', key: 'Peringkat', width: 10 },
+                        { header: 'Nama Siswa', key: 'NamaSiswa', width: 30 },
+                        { header: 'Rata-rata NR', key: 'RataNR', width: 15 },
+                        { header: 'Rata-rata US', key: 'RataUS', width: 15 },
+                        { header: 'Nilai Akhir Sekolah', key: 'NilaiAkhir', width: 20 }
+                    ];
+                    sortedTop10.forEach((item, idx) => {
+                        wsTop10.addRow({
+                            Peringkat: idx + 1,
+                            NamaSiswa: item['NAMA SISWA'],
+                            RataNR: item['RATA-RATA NR'],
+                            RataUS: item['Rata-Rata'],
+                            NilaiAkhir: item['NILAI SEKOLAH']
+                        });
+                    });
+                    styleHeader(wsTop10, 5);
+                    applyBorders(wsTop10, sortedTop10.length + 1, 5);
 
                     // 2. Sheet Rekap Nilai Akhir
-                    const rekapData = dashboardData
-                        .sort((a, b) => a['NAMA SISWA'].localeCompare(b['NAMA SISWA']))
-                        .map((item, idx) => ({
-                            'No': idx + 1,
-                            'Nama Siswa': item['NAMA SISWA'],
-                            'Rata-rata NR': item['RATA-RATA NR'],
-                            'Rata-rata US': item['Rata-Rata'],
-                            'Nilai Akhir Sekolah': item['NILAI SEKOLAH']
-                        }));
-                        
-                    const wsRekap = XLSX.utils.json_to_sheet(rekapData);
-                    XLSX.utils.book_append_sheet(wb, wsRekap, "Rekap Nilai Akhir");
+                    const sortedRekap = dashboardData
+                        .sort((a, b) => a['NAMA SISWA'].localeCompare(b['NAMA SISWA']));
+                    const wsRekap = workbook.addWorksheet("Rekap Nilai Akhir");
+                    wsRekap.columns = [
+                        { header: 'No', key: 'No', width: 10 },
+                        { header: 'Nama Siswa', key: 'NamaSiswa', width: 30 },
+                        { header: 'Rata-rata NR', key: 'RataNR', width: 15 },
+                        { header: 'Rata-rata US', key: 'RataUS', width: 15 },
+                        { header: 'Nilai Akhir Sekolah', key: 'NilaiAkhir', width: 20 }
+                    ];
+                    sortedRekap.forEach((item, idx) => {
+                        wsRekap.addRow({
+                            No: idx + 1,
+                            NamaSiswa: item['NAMA SISWA'],
+                            RataNR: item['RATA-RATA NR'],
+                            RataUS: item['Rata-Rata'],
+                            NilaiAkhir: item['NILAI SEKOLAH']
+                        });
+                    });
+                    styleHeader(wsRekap, 5);
+                    applyBorders(wsRekap, sortedRekap.length + 1, 5);
 
                     // 3. Sheet Per Mata Pelajaran
                     const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
                     
                     subjects.forEach(subject => {
-                        const subjectData = [];
-                        
-                        rawStudents.forEach((student, idx) => {
-                            const nama = student['NAMA PESERTA'];
-                            const no = student['NO URUT'] || (idx + 1);
-                            const grade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === subject) || {};
-                            
-                            subjectData.push({
-                                'NO': no,
-                                'NAMA SISWA': nama,
-                                'Smt 7': grade['7'] || '',
-                                'Smt 8': grade['8'] || '',
-                                'Smt 9': grade['9'] || '',
-                                'Smt 10': grade['10'] || '',
-                                'Smt 11': grade['11'] || '',
-                                'JML': grade['JML'] || '',
-                                'RATA-RATA NR': grade['RATA-RATA NR'] || '',
-                                'BOBOT 40%': grade['BOBOT 40%'] || '',
-                                'Tulis': grade['Tulis'] || '',
-                                'Praktik': grade['Praktik'] || '',
-                                'Rata-Rata US': grade['Rata-Rata'] || '',
-                                'BOBOT 60%': grade['BOBOT 60%'] || '',
-                                'NILAI SEKOLAH': grade['NILAI SEKOLAH'] || ''
-                            });
-                        });
-                        
                         // Limit sheet name to 31 chars for Excel compatibility
                         let sheetName = subject;
                         if (sheetName.length > 31) {
                             sheetName = sheetName.substring(0, 31);
                         }
+                        const wsSubject = workbook.addWorksheet(sheetName);
                         
-                        const wsSubject = XLSX.utils.json_to_sheet(subjectData);
-                        XLSX.utils.book_append_sheet(wb, wsSubject, sheetName);
+                        wsSubject.columns = [
+                            { header: 'NO', key: 'NO', width: 5 },
+                            { header: 'NAMA SISWA', key: 'NAMA', width: 30 },
+                            { header: '7', key: 'S7', width: 8 },
+                            { header: '8', key: 'S8', width: 8 },
+                            { header: '9', key: 'S9', width: 8 },
+                            { header: '10', key: 'S10', width: 8 },
+                            { header: '11', key: 'S11', width: 8 },
+                            { header: 'JML', key: 'JML', width: 8 },
+                            { header: 'RATA-RATA NR', key: 'RATANR', width: 15 },
+                            { header: 'BOBOT 40%', key: 'BOBOT40', width: 12 },
+                            { header: 'Tulis', key: 'Tulis', width: 8 },
+                            { header: 'Praktik', key: 'Praktik', width: 10 },
+                            { header: 'Rata-Rata US', key: 'RATAUS', width: 15 },
+                            { header: 'BOBOT 60%', key: 'BOBOT60', width: 12 },
+                            { header: 'NILAI SEKOLAH', key: 'NILAI', width: 15 }
+                        ];
+
+                        rawStudents.forEach((student, idx) => {
+                            const nama = student['NAMA PESERTA'];
+                            const no = student['NO URUT'] || (idx + 1);
+                            const grade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === subject) || {};
+                            
+                            const row = wsSubject.addRow({
+                                NO: no,
+                                NAMA: nama,
+                                S7: grade['7'] || '',
+                                S8: grade['8'] || '',
+                                S9: grade['9'] || '',
+                                S10: grade['10'] || '',
+                                S11: grade['11'] || '',
+                                JML: grade['JML'] || '',
+                                RATANR: grade['RATA-RATA NR'] || '',
+                                BOBOT40: grade['BOBOT 40%'] || '',
+                                Tulis: grade['Tulis'] || '',
+                                Praktik: grade['Praktik'] || '',
+                                RATAUS: grade['Rata-Rata'] || '',
+                                BOBOT60: grade['BOBOT 60%'] || '',
+                                NILAI: grade['NILAI SEKOLAH'] || ''
+                            });
+
+                            // Alignment untuk Angka
+                            for(let c=3; c<=15; c++) {
+                                row.getCell(c).alignment = { horizontal: 'center' };
+                            }
+                            row.getCell(1).alignment = { horizontal: 'center' };
+                            
+                            // Style Cells (Warna Kuning) persis seperti antarmuka
+                            // JML & Rata-rata NR (Yellow 50)
+                            const yellow50 = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFBEB' } }; // Tailwind yellow-50
+                            row.getCell('JML').fill = yellow50;
+                            row.getCell('RATANR').fill = yellow50;
+                            row.getCell('RATAUS').fill = yellow50;
+
+                            // Bobot 40 & 60 (Yellow 100)
+                            const yellow100 = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Tailwind yellow-100
+                            const bobot40Cell = row.getCell('BOBOT40');
+                            bobot40Cell.fill = yellow100;
+                            bobot40Cell.font = { bold: true, color: { argb: 'FF1D4ED8' } }; // Blue 700
+
+                            const bobot60Cell = row.getCell('BOBOT60');
+                            bobot60Cell.fill = yellow100;
+                            bobot60Cell.font = { bold: true, color: { argb: 'FF7E22CE' } }; // Purple 700
+
+                            // Nilai Sekolah (Yellow 200)
+                            const yellow200 = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } }; // Tailwind yellow-200
+                            const nilaiCell = row.getCell('NILAI');
+                            nilaiCell.fill = yellow200;
+                            nilaiCell.font = { bold: true };
+
+                        });
+
+                        styleHeader(wsSubject, 15);
+                        applyBorders(wsSubject, rawStudents.length + 1, 15);
                     });
 
                     // Generate file and trigger download
-                    XLSX.writeFile(wb, "Data_Nilai_Sekolah.xlsx");
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    saveAs(blob, "Data_Nilai_Sekolah.xlsx");
+                    
                 } catch (e) {
                     console.error("Gagal mengekspor ke Excel", e);
                     alert("Terjadi kesalahan saat mengekspor data ke Excel.");
