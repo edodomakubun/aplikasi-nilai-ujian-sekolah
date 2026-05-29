@@ -25,6 +25,8 @@ function doPost(e) {
     return createJsonResponse(saveStudent(data));
   } else if (action === 'saveGrade') {
     return createJsonResponse(saveGrade(data));
+  } else if (action === 'login') {
+    return createJsonResponse(loginUser(data));
   }
   
   return createJsonResponse({error: 'Invalid action'});
@@ -149,4 +151,36 @@ function ensureSheetsExist() {
       sheetNilai.setFrozenRows(1);
     } catch(e) {}
   }
+
+  let sheetUsers = ss.getSheetByName('Users');
+  if (!sheetUsers) {
+    sheetUsers = ss.insertSheet('Users');
+    sheetUsers.appendRow(['USERNAME', 'PASSWORD']);
+    sheetUsers.appendRow(['admin', 'admin123']);
+    try {
+      sheetUsers.getRange('A1:B1').setFontWeight('bold').setBackground('#f3f3f3');
+      sheetUsers.setFrozenRows(1);
+    } catch(e) {}
+  }
+}
+
+// ==================== AUTHENTICATION ====================
+function loginUser(data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Users');
+  if(!sheet) return {success: false, error: "Sheet 'Users' tidak ditemukan"};
+  
+  const allData = sheet.getDataRange().getValues();
+  const username = data.username;
+  const password = data.password;
+  
+  if(!username || !password) return {success: false, error: "Username dan Password wajib diisi"};
+
+  for(let i=1; i<allData.length; i++) {
+    if(allData[i][0] == username && allData[i][1] == password) {
+      // Valid
+      return {success: true, message: "Login berhasil", token: Utilities.base64Encode(username + ':' + new Date().getTime())};
+    }
+  }
+  
+  return {success: false, error: "Username atau Password salah"};
 }
