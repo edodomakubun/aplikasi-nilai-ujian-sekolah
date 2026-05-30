@@ -239,7 +239,7 @@ function ensureSheetsExist() {
     } catch(e) {}
   }
   
-  const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+  const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'PKN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
   subjects.forEach(subject => {
     let sheetNilai = ss.getSheetByName(subject);
     if (!sheetNilai) {
