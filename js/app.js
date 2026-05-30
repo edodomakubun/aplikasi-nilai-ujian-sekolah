@@ -395,6 +395,8 @@ function refreshActiveView() {
         renderTable(document.getElementById('searchInput')?.value || '');
     } else if (hash === '#siswa') {
         renderSiswaTable(document.getElementById('searchSiswaInput')?.value || '');
+    } else if (hash === '#nilai') {
+        renderStudentsForNilai();
     } else if (hash === '#kalkulator') {
         renderKalkulatorRangking();
     }
@@ -824,8 +826,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnExportPDF) {
         btnExportPDF.addEventListener('click', async () => {
             const container = document.getElementById('allSubjectsContainer');
-            if (!container || container.innerHTML.trim() === '' || container.innerHTML.includes('Belum ada data')) {
-                alert("Tidak ada data tabel untuk diekspor ke PDF!");
+            // Cek apakah tabel benar-benar sudah dirender (bukan cuma komentar/kosong)
+            if (!container || container.children.length === 0 || container.innerHTML.includes('Belum ada data')) {
+                alert("Tidak ada data tabel untuk diekspor ke PDF! Pastikan data nilai sudah tampil.");
                 return;
             }
             
