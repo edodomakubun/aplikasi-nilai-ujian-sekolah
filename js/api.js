@@ -6,7 +6,7 @@ async function fetchAPI(action, method = 'GET', data = null) {
     return null;
   }
 
-  let url = `${API_URL}?action=${action}`;
+  let url = `${API_URL}?action=${action}&_t=${new Date().getTime()}`;
   let options = {
     method: method,
   };
