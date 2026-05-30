@@ -1138,13 +1138,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if(updateCount > 0) {
-                    renderNilaiTable();
+                    renderStudentsForNilai();
                     alert(`${updateCount} data nilai berhasil diimpor! Data sedang disimpan ke cloud...`);
-                    saveGradesBatch();
+                    const batchSaveBtn = document.getElementById('batchSaveBtn');
+                    if (batchSaveBtn) {
+                        batchSaveBtn.click();
+                    }
                 }
 
             } catch (err) {
-                console.error(err);
+                console.error("Kesalahan Import Excel: ", err);
                 alert("Gagal membaca file excel untuk diimpor!");
             }
             
