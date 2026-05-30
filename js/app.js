@@ -618,7 +618,11 @@ function attachSpreadsheetCalculations() {
 }
 
 function calculateRow(tr) {
-    const getVal = (className) => parseFloat(tr.querySelector('.' + className).value) || 0;
+    const getVal = (className) => {
+        let v = tr.querySelector('.' + className).value;
+        if(typeof v === 'string') v = v.replace(',', '.');
+        return parseFloat(v) || 0;
+    };
     
     const n7 = getVal('inp-7');
     const n8 = getVal('inp-8');
@@ -670,7 +674,9 @@ function calculateFooter() {
         columns.forEach(c => {
             const input = tr.querySelector('.' + c);
             if (input && input.value !== '') {
-                const val = parseFloat(input.value);
+                let v = input.value;
+                if(typeof v === 'string') v = v.replace(',', '.');
+                const val = parseFloat(v);
                 if (!isNaN(val)) {
                     stats[c].sum += val;
                     stats[c].count++;
@@ -1005,8 +1011,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(!nama) return;
 
                     const getVal = (col) => {
-                        const val = row.getCell(col).value;
-                        return (typeof val === 'number') ? val : 0;
+                        let val = row.getCell(col).value;
+                        if(typeof val === 'object' && val !== null) val = val.result || val.text || '';
+                        if(typeof val === 'string') val = val.replace(',', '.');
+                        const parsed = parseFloat(val);
+                        return isNaN(parsed) ? 0 : parsed;
                     };
 
                     const s7 = getVal(4);
@@ -1088,8 +1097,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(!nama && !nis) return;
 
                     const getVal = (col) => {
-                        const val = row.getCell(col).value;
-                        return (typeof val === 'number') ? val : '';
+                        let val = row.getCell(col).value;
+                        if(typeof val === 'object' && val !== null) val = val.result || val.text || '';
+                        if(typeof val === 'string') val = val.replace(',', '.');
+                        const parsed = parseFloat(val);
+                        return isNaN(parsed) ? '' : parsed;
                     };
 
                     let grade = rawData.find(g => (g['NAMA SISWA'] === nama || g['NIS'] === nis) && g['MATA PELAJARAN'] === currentSubject);
@@ -1112,13 +1124,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     grade['Praktik'] = getVal(10);
                     
                     // Kalkulasi otomatis
-                    const s7 = parseFloat(grade['7'])||0;
-                    const s8 = parseFloat(grade['8'])||0;
-                    const s9 = parseFloat(grade['9'])||0;
-                    const s10 = parseFloat(grade['10'])||0;
-                    const s11 = parseFloat(grade['11'])||0;
-                    const tulis = parseFloat(grade['Tulis'])||0;
-                    const praktik = parseFloat(grade['Praktik'])||0;
+                    const parseSafe = (v) => {
+                        if(typeof v === 'string') v = v.replace(',', '.');
+                        const parsed = parseFloat(v);
+                        return isNaN(parsed) ? 0 : parsed;
+                    };
+                    const s7 = parseSafe(grade['7']);
+                    const s8 = parseSafe(grade['8']);
+                    const s9 = parseSafe(grade['9']);
+                    const s10 = parseSafe(grade['10']);
+                    const s11 = parseSafe(grade['11']);
+                    const tulis = parseSafe(grade['Tulis']);
+                    const praktik = parseSafe(grade['Praktik']);
 
                     const jml = s7+s8+s9+s10+s11;
                     const ratanr = jml/5;
