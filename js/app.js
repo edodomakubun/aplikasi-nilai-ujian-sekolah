@@ -838,25 +838,139 @@ document.addEventListener('DOMContentLoaded', () => {
             btnExportPDF.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent mr-2"></div> Memproses...';
             btnExportPDF.disabled = true;
             
-            // Persiapan DOM: Set value attribute agar terbaca oleh html2canvas
-            const inputs = container.querySelectorAll('input');
-            inputs.forEach(inp => {
-                if (inp.value) inp.setAttribute('value', inp.value);
-            });
-            
-            const opt = {
-                margin:       [10, 10, 10, 10], // margin dalam milimeter
-                filename:     'Data_Nilai_Sekolah.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a3', orientation: 'landscape' }
-            };
-            
             try {
-                await html2pdf().set(opt).from(container).save();
+                // Initialize jsPDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape', format: 'a3' });
+                
+                const tables = document.querySelectorAll('.subject-table-wrapper');
+                
+                tables.forEach((wrapper, index) => {
+                    if (index > 0) doc.addPage();
+                    
+                    const subject = wrapper.getAttribute('data-subject');
+                    doc.setFontSize(16);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(30, 58, 138); // text-blue-900
+                    doc.text(`DATA NILAI MATA PELAJARAN: ${subject}`, 14, 15);
+                    
+                    // Prepare Head
+                    const head = [
+                        [
+                            { content: 'NO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'NAMA SISWA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'NILAI RAPOR (NR) SEMESTER', colSpan: 5, styles: { halign: 'center' } },
+                            { content: 'JML', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'RATA-RATA NR', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'BOBOT 40%', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'NILAI UJIAN SEKOLAH', colSpan: 2, styles: { halign: 'center' } },
+                            { content: 'RATA-RATA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'BOBOT 60%', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                            { content: 'NILAI SEKOLAH', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+                        ],
+                        [
+                            { content: '7', styles: { halign: 'center' } },
+                            { content: '8', styles: { halign: 'center' } },
+                            { content: '9', styles: { halign: 'center' } },
+                            { content: '10', styles: { halign: 'center' } },
+                            { content: '11', styles: { halign: 'center' } },
+                            { content: 'Tulis', styles: { halign: 'center' } },
+                            { content: 'PRAKTIK', styles: { halign: 'center' } }
+                        ]
+                    ];
+                    
+                    // Prepare Body
+                    const body = [];
+                    const rows = wrapper.querySelectorAll('tbody tr');
+                    rows.forEach(tr => {
+                        const getVal = (className) => {
+                            const el = tr.querySelector('.' + className);
+                            if (!el) return '';
+                            return (el.tagName === 'INPUT') ? el.value : el.innerText;
+                        };
+                        
+                        body.push([
+                            getVal('cell-no'),
+                            getVal('cell-nama'),
+                            getVal('inp-7'),
+                            getVal('inp-8'),
+                            getVal('inp-9'),
+                            getVal('inp-10'),
+                            getVal('inp-11'),
+                            getVal('out-jml'),
+                            getVal('out-rata-nr'),
+                            getVal('out-bobot40'),
+                            getVal('inp-tulis'),
+                            getVal('inp-praktik'),
+                            getVal('out-rata-us'),
+                            getVal('out-bobot60'),
+                            getVal('out-akhir')
+                        ]);
+                    });
+                    
+                    // Prepare Footer
+                    const foot = [];
+                    const tfootRows = wrapper.querySelectorAll('tfoot tr');
+                    tfootRows.forEach(tr => {
+                        const rowData = [];
+                        const cells = tr.querySelectorAll('td');
+                        cells.forEach(td => {
+                            let colSpan = parseInt(td.getAttribute('colspan') || '1');
+                            let content = td.innerText;
+                            let style = {};
+                            if (colSpan > 1) {
+                                style.halign = 'right';
+                            } else {
+                                style.halign = 'center';
+                                if (td.className.includes('text-red-600')) style.textColor = '#dc2626';
+                                else if (td.className.includes('text-blue-600')) style.textColor = '#2563eb';
+                                else if (td.className.includes('text-green-600')) style.textColor = '#16a34a';
+                            }
+                            if(colSpan > 1) {
+                                rowData.push({ content: content, colSpan: colSpan, styles: style });
+                            } else {
+                                rowData.push({ content: content, styles: style });
+                            }
+                        });
+                        foot.push(rowData);
+                    });
+                    
+                    doc.autoTable({
+                        startY: 22,
+                        head: head,
+                        body: body,
+                        foot: foot,
+                        theme: 'grid',
+                        headStyles: { fillColor: '#f3f4f6', textColor: '#374151', lineColor: '#e5e7eb', lineWidth: 0.1 },
+                        styles: { font: 'helvetica', fontSize: 10, cellPadding: 2, lineColor: '#e5e7eb', lineWidth: 0.1 },
+                        didParseCell: function(data) {
+                            if (data.section === 'body' || data.section === 'foot') {
+                                const cIndex = data.column.index;
+                                if (cIndex === 7 || cIndex === 8 || cIndex === 12) {
+                                    data.cell.styles.fillColor = '#fffbeb'; // bg-yellow-50
+                                } else if (cIndex === 9) {
+                                    data.cell.styles.fillColor = '#fef3c7'; // bg-yellow-100
+                                    data.cell.styles.textColor = '#2563eb'; // text-blue-600
+                                    data.cell.styles.fontStyle = 'bold';
+                                } else if (cIndex === 13) {
+                                    data.cell.styles.fillColor = '#fef3c7'; // bg-yellow-100
+                                    data.cell.styles.textColor = '#9333ea'; // text-purple-600
+                                    data.cell.styles.fontStyle = 'bold';
+                                } else if (cIndex === 14) {
+                                    data.cell.styles.fillColor = '#fde68a'; // bg-yellow-200
+                                    data.cell.styles.fontStyle = 'bold';
+                                    data.cell.styles.textColor = '#111827';
+                                }
+                            }
+                        }
+                    });
+                });
+                
+                doc.save('Data_Nilai_Sekolah.pdf');
+                
             } catch(e) {
                 console.error("Gagal export PDF:", e);
-                alert("Gagal melakukan export PDF. Pastikan library termuat.");
+                alert("Terjadi kesalahan saat memproses data PDF.");
             }
             
             btnExportPDF.innerHTML = `
