@@ -1,9 +1,9 @@
 import { api } from './api.js';
 import { logout, checkAuth } from './auth.js';
 
-let rawData = [];
-let rawStudents = [];
-let dashboardData = [];
+let rawData = JSON.parse(localStorage.getItem('edu_rawData')) || [];
+let rawStudents = JSON.parse(localStorage.getItem('edu_rawStudents')) || [];
+let dashboardData = JSON.parse(localStorage.getItem('edu_dashboardData')) || [];
 let currentSubject = 'PENDIDIKAN AGAMA KRISTEN';
 
 // ==========================================
@@ -326,10 +326,12 @@ async function syncData() {
         
         if (studentsResult && !studentsResult.error) {
             rawStudents = studentsResult.data || [];
+            localStorage.setItem('edu_rawStudents', JSON.stringify(rawStudents));
         }
         
         if (gradesResult && !gradesResult.error) {
             rawData = gradesResult.data || [];
+            localStorage.setItem('edu_rawData', JSON.stringify(rawData));
             
             // Agregasi nilai rata-rata tiap siswa dari semua mata pelajaran
             const studentGrades = {};
@@ -364,6 +366,7 @@ async function syncData() {
                     });
                 }
             }
+            localStorage.setItem('edu_dashboardData', JSON.stringify(dashboardData));
         }
     } catch (e) {
         console.error('Sync failed', e);
@@ -548,6 +551,48 @@ function renderStudentsForNilai() {
     
     if (rawStudents.length === 0) {
         tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-gray-500">Belum ada data siswa. Input siswa terlebih dahulu.</td></tr>';
+        return;
+    }
+
+    const currentRows = tbody.querySelectorAll('tr');
+    // Smart Update: Jika jumlah baris sama, kita hanya perbarui input yang tidak sedang difokuskan
+    const isSmartUpdate = currentRows.length === rawStudents.length && currentRows.length > 0 && currentRows[0].querySelector('.inp-7');
+
+    if (isSmartUpdate) {
+        let hasChanges = false;
+        rawStudents.forEach((row, idx) => {
+            const nama = row['NAMA PESERTA'];
+            const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === currentSubject) || {};
+            
+            const formatVal = (v) => {
+                if (v === '' || v === undefined || v === null) return '';
+                const num = parseFloat(String(v).replace(',', '.'));
+                return isNaN(num) ? '' : num.toFixed(2);
+            };
+
+            const tr = currentRows[idx];
+            
+            const updateInput = (selector, val) => {
+                const input = tr.querySelector(selector);
+                if (input && input !== document.activeElement) {
+                    if (input.value !== val) {
+                        input.value = val;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        hasChanges = true;
+                    }
+                }
+            };
+            
+            updateInput('.inp-7', formatVal(existingGrade['7']));
+            updateInput('.inp-8', formatVal(existingGrade['8']));
+            updateInput('.inp-9', formatVal(existingGrade['9']));
+            updateInput('.inp-10', formatVal(existingGrade['10']));
+            updateInput('.inp-11', formatVal(existingGrade['11']));
+            updateInput('.inp-tulis', formatVal(existingGrade['Tulis']));
+            updateInput('.inp-praktik', formatVal(existingGrade['Praktik']));
+        });
+        
+        // Memicu event input secara manual akan merangsang kalkulasi jika ada perubahan
         return;
     }
 
@@ -1098,15 +1143,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = new ExcelJS.Workbook();
                 await workbook.xlsx.load(arrayBuffer);
-                const ws = workbook.worksheets[0];
+                let ws = workbook.worksheets.find(w => w.name.toUpperCase() === currentSubject.toUpperCase() || w.name.substring(0,31).toUpperCase() === currentSubject.substring(0,31).toUpperCase());
+                if (!ws) {
+                    ws = workbook.worksheets[0]; // fallback
+                }
 
                 let updateCount = 0;
+                
+                // Deteksi kolom dinamis
+                let colNama = 3, colNis = 2;
+                let colS7 = 4, colS8 = 5, colS9 = 6, colS10 = 7, colS11 = 8;
+                let colTulis = 9, colPrak = 10;
+                
+                const headerRow = ws.getRow(1);
+                if (headerRow) {
+                    headerRow.eachCell((cell, colNumber) => {
+                        const val = String(cell.value).toUpperCase();
+                        if(val.includes('NAMA')) colNama = colNumber;
+                        else if(val === 'NIS') colNis = colNumber;
+                        else if(val === '7' || val.includes('SMT 7')) colS7 = colNumber;
+                        else if(val === '8' || val.includes('SMT 8')) colS8 = colNumber;
+                        else if(val === '9' || val.includes('SMT 9')) colS9 = colNumber;
+                        else if(val === '10' || val.includes('SMT 10')) colS10 = colNumber;
+                        else if(val === '11' || val.includes('SMT 11')) colS11 = colNumber;
+                        else if(val.includes('TULIS')) colTulis = colNumber;
+                        else if(val.includes('PRAKTIK')) colPrak = colNumber;
+                    });
+                }
 
                 ws.eachRow((row, rowNumber) => {
                     if(rowNumber === 1) return;
                     
-                    const nama = row.getCell(3).value;
-                    const nis = row.getCell(2).value;
+                    const nama = row.getCell(colNama).value;
+                    const nis = row.getCell(colNis).value;
 
                     if(!nama && !nis) return;
 
@@ -1118,24 +1187,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         return isNaN(parsed) ? '' : parsed;
                     };
 
-                    let grade = rawData.find(g => (g['NAMA SISWA'] === nama || g['NIS'] === nis) && g['MATA PELAJARAN'] === currentSubject);
+                    let grade = rawData.find(g => (g['NAMA SISWA'] === nama || (nis && g['NIS'] === nis)) && g['MATA PELAJARAN'] === currentSubject);
                     
                     if(!grade) {
                         grade = {
-                            'NAMA SISWA': nama,
-                            'NIS': nis,
+                            'NAMA SISWA': nama || '',
+                            'NIS': nis || '',
                             'MATA PELAJARAN': currentSubject
                         };
                         rawData.push(grade);
                     }
 
-                    grade['7'] = getVal(4);
-                    grade['8'] = getVal(5);
-                    grade['9'] = getVal(6);
-                    grade['10'] = getVal(7);
-                    grade['11'] = getVal(8);
-                    grade['Tulis'] = getVal(9);
-                    grade['Praktik'] = getVal(10);
+                    grade['7'] = getVal(colS7);
+                    grade['8'] = getVal(colS8);
+                    grade['9'] = getVal(colS9);
+                    grade['10'] = getVal(colS10);
+                    grade['11'] = getVal(colS11);
+                    grade['Tulis'] = getVal(colTulis);
+                    grade['Praktik'] = getVal(colPrak);
                     
                     // Kalkulasi otomatis
                     const parseSafe = (v) => {
