@@ -126,10 +126,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     if(closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            modal.classList.add('hidden');
-        });
+        logoutBtnMobile.addEventListener('click', () => {
+        api.logout();
+        window.location.reload();
+    });
+});
+
+// ==========================================
+// LOGIKA KALKULATOR RANGKING OTOMATIS
+// ==========================================
+function renderKalkulatorRangking() {
+    const tbody = document.getElementById('kalkulatorTableBody');
+    const container = document.getElementById('kalkulatorResult');
+    if (!tbody || !container) return;
+
+    if (!dashboardData || dashboardData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">Belum ada data nilai. Silakan Sinkronisasi Data terlebih dahulu.</td></tr>`;
+        container.classList.remove('hidden');
+        return;
     }
+
+    // Sort by Nilai Akhir descending
+    const sortedData = [...dashboardData]
+        .filter(a => parseFloat(a['NILAI SEKOLAH']) > 0)
+        .sort((a, b) => parseFloat(b['NILAI SEKOLAH']) - parseFloat(a['NILAI SEKOLAH']))
+        .slice(0, 10);
+
+    if (sortedData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">Data nilai masih kosong atau bernilai 0.</td></tr>`;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    const generateDescription = (student, rank) => {
+        const nama = student['NAMA SISWA'];
+        const na = parseFloat(student['NILAI SEKOLAH']).toFixed(2);
+        const us = parseFloat(student['Rata-Rata']).toFixed(2);
+        const nr = parseFloat(student['RATA-RATA NR']).toFixed(2);
+        const diff = Math.abs(us - nr).toFixed(2);
+        
+        let desc = "";
+        
+        if (rank === 1) {
+            desc = `Luar biasa! <b>${nama}</b> berhasil menduduki peringkat <b>PERTAMA</b> dengan Nilai Akhir <b>${na}</b>. `;
+            if (us > nr) {
+                desc += `Pencapaian ini sangat dipengaruhi oleh lonjakan pada Ujian Sekolah (Rata-rata <b>${us}</b>) yang mengungguli nilai rapor hariannya (<b>${nr}</b>), membuktikan kesiapan puncaknya dalam menghadapi evaluasi akhir.`;
+            } else {
+                desc += `Konsistensi belajarnya terbukti dari tingginya Nilai Rapor (<b>${nr}</b>) yang menjadi fondasi kuat, dilengkapi dengan hasil Ujian Sekolah yang sangat memuaskan (<b>${us}</b>).`;
+            }
+        } else if (rank === 2 || rank === 3) {
+            desc = `<b>${nama}</b> mengamankan posisi ke-${rank} dengan Nilai Akhir <b>${na}</b>. `;
+            desc += `Selisih performa antara rata-rata ujian sekolah (<b>${us}</b>) dan rapor (<b>${nr}</b>) hanya sebesar ${diff} poin. Ini adalah hasil yang sangat luar biasa dan kompetitif di jajaran papan atas.`;
+        } else {
+            desc = `Masuk dalam jajaran elit 10 Besar, <b>${nama}</b> meraih peringkat ke-${rank} berkat perolehan Nilai Akhir <b>${na}</b>. `;
+            if (us >= 85) {
+                desc += `Kekuatan utamanya ada pada performa Rata-rata Ujian Sekolah yang tinggi (<b>${us}</b>), menutupi sedikit kekurangan pada bobot rapornya (<b>${nr}</b>).`;
+            } else if (nr >= 85) {
+                desc += `Pondasi Rata-rata Rapor (NR) yang sangat baik secara akumulatif (<b>${nr}</b>) berhasil menopang nilai akhir kuatnya meskipun nilai Ujian Sekolahnya berada di angka <b>${us}</b>.`;
+            } else {
+                desc += `Performa yang sangat seimbang antara rapor harian (<b>${nr}</b>) dan ujian sekolah (<b>${us}</b>) membuatnya sukses mempertahankan posisi tangguh di 10 besar sekolah.`;
+            }
+        }
+        
+        return desc;
+    };
+
+    tbody.innerHTML = sortedData.map((item, idx) => `
+        <tr class="hover:bg-blue-50/20 transition-colors">
+            <td class="px-4 py-4 text-center">
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full ${idx === 0 ? 'bg-yellow-400 text-white shadow-md ring-4 ring-yellow-100' : idx === 1 ? 'bg-gray-300 text-gray-800 shadow-sm ring-4 ring-gray-100' : idx === 2 ? 'bg-amber-600 text-white shadow-sm ring-4 ring-amber-100' : 'bg-gray-100 text-gray-700 font-semibold'} text-lg">
+                    ${idx + 1}
+                </span>
+            </td>
+            <td class="px-4 py-4 font-bold text-gray-900 text-base">${item['NAMA SISWA']}</td>
+            <td class="px-4 py-4 bg-yellow-50/50 text-center text-xl font-black text-gray-900 border-x border-yellow-100">${parseFloat(item['NILAI SEKOLAH']).toFixed(2)}</td>
+            <td class="px-4 py-4 text-gray-700 leading-relaxed text-justify text-sm">${generateDescription(item, idx + 1)}</td>
+        </tr>
+    `).join('');
+
+    container.classList.remove('hidden');
+}
 
     // Input Siswa Form (CRUD)
     const siswaForm = document.getElementById('siswaForm');
@@ -395,8 +471,8 @@ function refreshActiveView() {
         renderTable(document.getElementById('searchInput')?.value || '');
     } else if (hash === '#siswa') {
         renderSiswaTable(document.getElementById('searchSiswaInput')?.value || '');
-    } else if (hash === '#nilai') {
-        renderStudentsForNilai();
+    } else if (hash === '#kalkulator') {
+        renderKalkulatorRangking();
     }
 }
 
@@ -817,9 +893,50 @@ function calculateFooter(wrapper) {
 }
 
 // ==========================================
-// EXPORT TO EXCEL
+// EXPORT TO EXCEL & PDF
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    const btnExportPDF = document.getElementById('btnExportPDF');
+    if (btnExportPDF) {
+        btnExportPDF.addEventListener('click', async () => {
+            const container = document.getElementById('allSubjectsContainer');
+            if (!container || container.innerHTML.trim() === '' || container.innerHTML.includes('Belum ada data')) {
+                alert("Tidak ada data tabel untuk diekspor ke PDF!");
+                return;
+            }
+            
+            btnExportPDF.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent mr-2"></div> Memproses...';
+            btnExportPDF.disabled = true;
+            
+            // Persiapan DOM: Set value attribute agar terbaca oleh html2canvas
+            const inputs = container.querySelectorAll('input');
+            inputs.forEach(inp => {
+                if (inp.value) inp.setAttribute('value', inp.value);
+            });
+            
+            const opt = {
+                margin:       [10, 10, 10, 10], // margin dalam milimeter
+                filename:     'Data_Nilai_Sekolah.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a3', orientation: 'landscape' }
+            };
+            
+            try {
+                await html2pdf().set(opt).from(container).save();
+            } catch(e) {
+                console.error("Gagal export PDF:", e);
+                alert("Gagal melakukan export PDF. Pastikan library termuat.");
+            }
+            
+            btnExportPDF.innerHTML = `
+                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Ekspor PDF
+            `;
+            btnExportPDF.disabled = false;
+        });
+    }
+
     const exportBtn = document.getElementById('exportExcelBtn');
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
@@ -1163,81 +1280,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if(btnTpl1) btnTpl1.addEventListener('click', downloadTemplateNilai);
     if(btnTpl2) btnTpl2.addEventListener('click', downloadTemplate);
 
-    // Hitung Kalkulator Rangking
-    const calcInput = document.getElementById('calcImportFile');
-    if(calcInput) {
-        calcInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const workbook = new ExcelJS.Workbook();
-                await workbook.xlsx.load(arrayBuffer);
-                const ws = workbook.worksheets[0];
-
-                let results = [];
-                
-                ws.eachRow((row, rowNumber) => {
-                    if(rowNumber === 1) return; // skip header
-                    
-                    const nama = row.getCell(3).value;
-                    if(!nama) return;
-
-                    const getVal = (col) => {
-                        let val = row.getCell(col).value;
-                        if(typeof val === 'object' && val !== null) val = val.result || val.text || '';
-                        if(typeof val === 'string') val = val.replace(',', '.');
-                        const parsed = parseFloat(val);
-                        return isNaN(parsed) ? 0 : parsed;
-                    };
-
-                    const s7 = getVal(4);
-                    const s8 = getVal(5);
-                    const s9 = getVal(6);
-                    const s10 = getVal(7);
-                    const s11 = getVal(8);
-                    const tulis = getVal(9);
-                    const praktik = getVal(10);
-
-                    const jml = s7 + s8 + s9 + s10 + s11;
-                    const rataNR = jml / 5;
-                    const bobot40 = rataNR * 0.4;
-                    const rataUS = (tulis + praktik) / 2;
-                    const bobot60 = rataUS * 0.6;
-                    const nilaiAkhir = bobot40 + bobot60;
-
-                    results.push({
-                        nama, jml, rataNR, bobot40, rataUS, bobot60, nilaiAkhir
-                    });
-                });
-
-                // Urutkan dan ambil top 10
-                results.sort((a,b) => b.nilaiAkhir - a.nilaiAkhir);
-                const top10 = results.slice(0, 10);
-
-                const tbody = document.getElementById('kalkulatorTableBody');
-                tbody.innerHTML = top10.map((item, idx) => `
-                    <tr class="hover:bg-gray-50 border-b border-gray-100">
-                        <td class="px-4 py-3 text-center font-semibold text-gray-700">${idx+1}</td>
-                        <td class="px-4 py-3 font-bold text-gray-900">${item.nama}</td>
-                        <td class="px-4 py-3 text-center">${item.jml.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-center text-blue-600 font-medium">${item.rataNR.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-center text-blue-800 font-bold">${item.bobot40.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-center text-purple-600 font-medium">${item.rataUS.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-center text-purple-800 font-bold">${item.bobot60.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-center bg-yellow-50 font-bold text-lg">${item.nilaiAkhir.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-
-                document.getElementById('kalkulatorResult').classList.remove('hidden');
-
-            } catch (err) {
-                console.error(err);
-                alert("Gagal membaca file excel kalkulator!");
-            }
-            
-            calcInput.value = '';
+    // Hapus event listener Kalkulator Lama (sudah dirombak menjadi otomatis)
+    const refreshCalcBtn = document.getElementById('refreshKalkulatorBtn');
+    if (refreshCalcBtn) {
+        refreshCalcBtn.addEventListener('click', () => {
+            renderKalkulatorRangking();
         });
     }
 

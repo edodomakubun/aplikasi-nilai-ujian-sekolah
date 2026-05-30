@@ -28,6 +28,8 @@
     <!-- ExcelJS & FileSaver for Excel Export with Styling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- html2pdf for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script type="module" src="js/app.js"></script>
 </head>
 <body class="text-slate-800 antialiased h-screen w-screen overflow-hidden bg-gradient-to-br from-indigo-50 to-blue-100 flex">
@@ -345,7 +347,11 @@
                         <div class="flex flex-wrap gap-2" id="subjectTabsContainer">
                             <!-- Tabs dihapus untuk tampilan All-in-One -->
                         </div>
-                        <div class="flex gap-2 shrink-0">
+                        <div class="flex flex-wrap gap-2 shrink-0">
+                            <button id="btnExportPDF" class="px-4 py-2 rounded-lg text-sm font-medium border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2">
+                                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                Ekspor PDF
+                            </button>
                             <button id="btnDownloadTemplate1" class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
                                 <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                 Template Excel
@@ -377,44 +383,33 @@
                 </footer>
                 <!-- CONTENT 4: KALKULATOR RANGKING -->
                 <div id="kalkulator-content" class="spa-content hidden max-w-5xl mx-auto">
-                    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h1 class="text-3xl font-bold text-gray-900">Kalkulator Rangking (Top 10)</h1>
-                            <p class="mt-1 text-sm text-gray-500">Unggah nilai via Excel untuk menghitung otomatis 10 Besar terbaik.</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button id="btnDownloadTemplate2" class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
-                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Template Excel
-                            </button>
-                            <label class="px-4 py-2 rounded-lg text-sm font-medium border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2 cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                Impor Hitung Excel
-                                <input type="file" id="calcImportFile" accept=".xlsx" class="hidden">
-                            </label>
-                        </div>
+                    <div class="mb-6">
+                        <h1 class="text-3xl font-bold text-gray-900">Kalkulator Rangking (Top 10)</h1>
+                        <p class="mt-1 text-sm text-gray-500">Menghitung dan mendeskripsikan secara otomatis 10 Besar terbaik berdasarkan data nilai tersimpan.</p>
                     </div>
 
                     <div id="kalkulatorResult" class="glass rounded-2xl shadow-sm border border-white p-6 relative overflow-hidden hidden">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                            <svg class="w-6 h-6 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2.5a.5.5 0 00-.377.168l-4.5 5A.5.5 0 005.5 8.5h1.122l-.952 7.135a1.5 1.5 0 001.488 1.698h5.684a1.5 1.5 0 001.488-1.698L13.378 8.5H14.5a.5.5 0 00.377-.832l-4.5-5A.5.5 0 0010 2.5z" clip-rule="evenodd"></path></svg>
-                            Hasil Kalkulasi Top 10
-                        </h3>
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                                <svg class="w-6 h-6 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2.5a.5.5 0 00-.377.168l-4.5 5A.5.5 0 005.5 8.5h1.122l-.952 7.135a1.5 1.5 0 001.488 1.698h5.684a1.5 1.5 0 001.488-1.698L13.378 8.5H14.5a.5.5 0 00.377-.832l-4.5-5A.5.5 0 0010 2.5z" clip-rule="evenodd"></path></svg>
+                                Hasil Kalkulasi Otomatis Top 10
+                            </h3>
+                            <button id="refreshKalkulatorBtn" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Refresh
+                            </button>
+                        </div>
                         <div class="overflow-x-auto w-full">
-                            <table class="w-full text-sm border-collapse border border-gray-200">
-                                <thead class="bg-gray-100 text-gray-700 text-center">
+                            <table class="w-full text-sm border-collapse border border-gray-200 shadow-sm rounded-lg overflow-hidden">
+                                <thead class="bg-gray-100 text-gray-700 text-center uppercase tracking-wider text-xs">
                                     <tr>
-                                        <th class="border border-gray-200 px-4 py-3">Peringkat</th>
-                                        <th class="border border-gray-200 px-4 py-3 text-left">Nama Siswa</th>
-                                        <th class="border border-gray-200 px-4 py-3">Jumlah NR</th>
-                                        <th class="border border-gray-200 px-4 py-3">Rata-rata NR</th>
-                                        <th class="border border-gray-200 px-4 py-3">Bobot 40%</th>
-                                        <th class="border border-gray-200 px-4 py-3">Rata-rata US</th>
-                                        <th class="border border-gray-200 px-4 py-3">Bobot 60%</th>
-                                        <th class="border border-gray-200 px-4 py-3 font-bold bg-yellow-100">Nilai Akhir Sekolah</th>
+                                        <th class="border border-gray-200 px-4 py-4 font-bold w-24">Peringkat</th>
+                                        <th class="border border-gray-200 px-4 py-4 font-bold text-left w-64">Nama Siswa</th>
+                                        <th class="border border-gray-200 px-4 py-4 font-bold bg-yellow-100 w-32">Nilai Akhir</th>
+                                        <th class="border border-gray-200 px-4 py-4 font-bold text-left">Deskripsi Prestasi (Analisis Sistem)</th>
                                     </tr>
                                 </thead>
-                                <tbody id="kalkulatorTableBody" class="bg-white">
+                                <tbody id="kalkulatorTableBody" class="bg-white divide-y divide-gray-200">
                                     <!-- Results will be injected here -->
                                 </tbody>
                             </table>
