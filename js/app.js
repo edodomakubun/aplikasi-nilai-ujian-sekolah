@@ -1080,7 +1080,7 @@ async function downloadTemplate() {
 
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(blob, "Format_Import_Nilai.xlsx");
+        saveAs(blob, "Format_Import_Kalkulator.xlsx");
 
     } catch (e) {
         console.error(e);
@@ -1088,11 +1088,79 @@ async function downloadTemplate() {
     }
 }
 
+async function downloadTemplateNilai() {
+    try {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'EduGrade';
+        
+        const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'PKN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+        
+        subjects.forEach(subject => {
+            const sheetName = subject.substring(0, 31); // Excel worksheet names can't exceed 31 chars
+            const ws = workbook.addWorksheet(sheetName);
+
+            ws.columns = [
+                { header: 'No', key: 'No', width: 5 },
+                { header: 'NIS', key: 'NIS', width: 15 },
+                { header: 'Nama Siswa', key: 'NamaSiswa', width: 35 },
+                { header: 'Smt 7', key: 'S7', width: 10 },
+                { header: 'Smt 8', key: 'S8', width: 10 },
+                { header: 'Smt 9', key: 'S9', width: 10 },
+                { header: 'Smt 10', key: 'S10', width: 10 },
+                { header: 'Smt 11', key: 'S11', width: 10 },
+                { header: 'Tulis', key: 'Tulis', width: 10 },
+                { header: 'Praktik', key: 'Praktik', width: 10 }
+            ];
+
+            // Style header
+            const rowHeader = ws.getRow(1);
+            rowHeader.eachCell((cell, colNumber) => {
+                cell.font = { bold: true };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+                cell.alignment = { horizontal: 'center' };
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            });
+
+            // Add students
+            rawStudents.forEach((student, idx) => {
+                const no = student['NO URUT'] || (idx + 1);
+                const row = ws.addRow({
+                    No: no,
+                    NIS: student['NIS'],
+                    NamaSiswa: student['NAMA PESERTA']
+                });
+
+                // Lock columns A, B, C visually
+                const grayFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                row.getCell('No').fill = grayFill;
+                row.getCell('NIS').fill = grayFill;
+                row.getCell('NamaSiswa').fill = grayFill;
+
+                for(let c=1; c<=10; c++) {
+                    row.getCell(c).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                    if (c > 3) {
+                        row.getCell(c).alignment = { horizontal: 'center' };
+                        row.getCell(c).numFmt = '0.00'; // Format number in Excel so users can type comma or dot easily
+                    }
+                }
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, "Template_Import_Nilai_Semua_Mapel.xlsx");
+
+    } catch (e) {
+        console.error(e);
+        alert('Gagal membuat template excel nilai.');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Tombol Template
     const btnTpl1 = document.getElementById('btnDownloadTemplate1');
     const btnTpl2 = document.getElementById('btnDownloadTemplate2');
-    if(btnTpl1) btnTpl1.addEventListener('click', downloadTemplate);
+    if(btnTpl1) btnTpl1.addEventListener('click', downloadTemplateNilai);
     if(btnTpl2) btnTpl2.addEventListener('click', downloadTemplate);
 
     // Hitung Kalkulator Rangking
