@@ -126,86 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     if(closeBtn) {
-        logoutBtnMobile.addEventListener('click', () => {
-        api.logout();
-        window.location.reload();
-    });
-});
-
-// ==========================================
-// LOGIKA KALKULATOR RANGKING OTOMATIS
-// ==========================================
-function renderKalkulatorRangking() {
-    const tbody = document.getElementById('kalkulatorTableBody');
-    const container = document.getElementById('kalkulatorResult');
-    if (!tbody || !container) return;
-
-    if (!dashboardData || dashboardData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">Belum ada data nilai. Silakan Sinkronisasi Data terlebih dahulu.</td></tr>`;
-        container.classList.remove('hidden');
-        return;
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
     }
-
-    // Sort by Nilai Akhir descending
-    const sortedData = [...dashboardData]
-        .filter(a => parseFloat(a['NILAI SEKOLAH']) > 0)
-        .sort((a, b) => parseFloat(b['NILAI SEKOLAH']) - parseFloat(a['NILAI SEKOLAH']))
-        .slice(0, 10);
-
-    if (sortedData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">Data nilai masih kosong atau bernilai 0.</td></tr>`;
-        container.classList.remove('hidden');
-        return;
-    }
-
-    const generateDescription = (student, rank) => {
-        const nama = student['NAMA SISWA'];
-        const na = parseFloat(student['NILAI SEKOLAH']).toFixed(2);
-        const us = parseFloat(student['Rata-Rata']).toFixed(2);
-        const nr = parseFloat(student['RATA-RATA NR']).toFixed(2);
-        const diff = Math.abs(us - nr).toFixed(2);
-        
-        let desc = "";
-        
-        if (rank === 1) {
-            desc = `Luar biasa! <b>${nama}</b> berhasil menduduki peringkat <b>PERTAMA</b> dengan Nilai Akhir <b>${na}</b>. `;
-            if (us > nr) {
-                desc += `Pencapaian ini sangat dipengaruhi oleh lonjakan pada Ujian Sekolah (Rata-rata <b>${us}</b>) yang mengungguli nilai rapor hariannya (<b>${nr}</b>), membuktikan kesiapan puncaknya dalam menghadapi evaluasi akhir.`;
-            } else {
-                desc += `Konsistensi belajarnya terbukti dari tingginya Nilai Rapor (<b>${nr}</b>) yang menjadi fondasi kuat, dilengkapi dengan hasil Ujian Sekolah yang sangat memuaskan (<b>${us}</b>).`;
-            }
-        } else if (rank === 2 || rank === 3) {
-            desc = `<b>${nama}</b> mengamankan posisi ke-${rank} dengan Nilai Akhir <b>${na}</b>. `;
-            desc += `Selisih performa antara rata-rata ujian sekolah (<b>${us}</b>) dan rapor (<b>${nr}</b>) hanya sebesar ${diff} poin. Ini adalah hasil yang sangat luar biasa dan kompetitif di jajaran papan atas.`;
-        } else {
-            desc = `Masuk dalam jajaran elit 10 Besar, <b>${nama}</b> meraih peringkat ke-${rank} berkat perolehan Nilai Akhir <b>${na}</b>. `;
-            if (us >= 85) {
-                desc += `Kekuatan utamanya ada pada performa Rata-rata Ujian Sekolah yang tinggi (<b>${us}</b>), menutupi sedikit kekurangan pada bobot rapornya (<b>${nr}</b>).`;
-            } else if (nr >= 85) {
-                desc += `Pondasi Rata-rata Rapor (NR) yang sangat baik secara akumulatif (<b>${nr}</b>) berhasil menopang nilai akhir kuatnya meskipun nilai Ujian Sekolahnya berada di angka <b>${us}</b>.`;
-            } else {
-                desc += `Performa yang sangat seimbang antara rapor harian (<b>${nr}</b>) dan ujian sekolah (<b>${us}</b>) membuatnya sukses mempertahankan posisi tangguh di 10 besar sekolah.`;
-            }
-        }
-        
-        return desc;
-    };
-
-    tbody.innerHTML = sortedData.map((item, idx) => `
-        <tr class="hover:bg-blue-50/20 transition-colors">
-            <td class="px-4 py-4 text-center">
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full ${idx === 0 ? 'bg-yellow-400 text-white shadow-md ring-4 ring-yellow-100' : idx === 1 ? 'bg-gray-300 text-gray-800 shadow-sm ring-4 ring-gray-100' : idx === 2 ? 'bg-amber-600 text-white shadow-sm ring-4 ring-amber-100' : 'bg-gray-100 text-gray-700 font-semibold'} text-lg">
-                    ${idx + 1}
-                </span>
-            </td>
-            <td class="px-4 py-4 font-bold text-gray-900 text-base">${item['NAMA SISWA']}</td>
-            <td class="px-4 py-4 bg-yellow-50/50 text-center text-xl font-black text-gray-900 border-x border-yellow-100">${parseFloat(item['NILAI SEKOLAH']).toFixed(2)}</td>
-            <td class="px-4 py-4 text-gray-700 leading-relaxed text-justify text-sm">${generateDescription(item, idx + 1)}</td>
-        </tr>
-    `).join('');
-
-    container.classList.remove('hidden');
-}
 
     // Input Siswa Form (CRUD)
     const siswaForm = document.getElementById('siswaForm');
@@ -1420,3 +1344,78 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================
+// LOGIKA KALKULATOR RANGKING OTOMATIS
+// ==========================================
+function renderKalkulatorRangking() {
+    const tbody = document.getElementById('kalkulatorTableBody');
+    const container = document.getElementById('kalkulatorResult');
+    if (!tbody || !container) return;
+
+    if (!dashboardData || dashboardData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">Belum ada data nilai. Silakan Sinkronisasi Data terlebih dahulu.</td></tr>`;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    // Sort by Nilai Akhir descending
+    const sortedData = [...dashboardData]
+        .filter(a => parseFloat(a['NILAI SEKOLAH']) > 0)
+        .sort((a, b) => parseFloat(b['NILAI SEKOLAH']) - parseFloat(a['NILAI SEKOLAH']))
+        .slice(0, 10);
+
+    if (sortedData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">Data nilai masih kosong atau bernilai 0.</td></tr>`;
+        container.classList.remove('hidden');
+        return;
+    }
+
+    const generateDescription = (student, rank) => {
+        const nama = student['NAMA SISWA'];
+        const na = parseFloat(student['NILAI SEKOLAH']).toFixed(2);
+        const us = parseFloat(student['Rata-Rata']).toFixed(2);
+        const nr = parseFloat(student['RATA-RATA NR']).toFixed(2);
+        const diff = Math.abs(us - nr).toFixed(2);
+        
+        let desc = "";
+        
+        if (rank === 1) {
+            desc = `Luar biasa! <b>${nama}</b> berhasil menduduki peringkat <b>PERTAMA</b> dengan Nilai Akhir <b>${na}</b>. `;
+            if (us > nr) {
+                desc += `Pencapaian ini sangat dipengaruhi oleh lonjakan pada Ujian Sekolah (Rata-rata <b>${us}</b>) yang mengungguli nilai rapor hariannya (<b>${nr}</b>), membuktikan kesiapan puncaknya dalam menghadapi evaluasi akhir.`;
+            } else {
+                desc += `Konsistensi belajarnya terbukti dari tingginya Nilai Rapor (<b>${nr}</b>) yang menjadi fondasi kuat, dilengkapi dengan hasil Ujian Sekolah yang sangat memuaskan (<b>${us}</b>).`;
+            }
+        } else if (rank === 2 || rank === 3) {
+            desc = `<b>${nama}</b> mengamankan posisi ke-${rank} dengan Nilai Akhir <b>${na}</b>. `;
+            desc += `Selisih performa antara rata-rata ujian sekolah (<b>${us}</b>) dan rapor (<b>${nr}</b>) hanya sebesar ${diff} poin. Ini adalah hasil yang sangat luar biasa dan kompetitif di jajaran papan atas.`;
+        } else {
+            desc = `Masuk dalam jajaran elit 10 Besar, <b>${nama}</b> meraih peringkat ke-${rank} berkat perolehan Nilai Akhir <b>${na}</b>. `;
+            if (us >= 85) {
+                desc += `Kekuatan utamanya ada pada performa Rata-rata Ujian Sekolah yang tinggi (<b>${us}</b>), menutupi sedikit kekurangan pada bobot rapornya (<b>${nr}</b>).`;
+            } else if (nr >= 85) {
+                desc += `Pondasi Rata-rata Rapor (NR) yang sangat baik secara akumulatif (<b>${nr}</b>) berhasil menopang nilai akhir kuatnya meskipun nilai Ujian Sekolahnya berada di angka <b>${us}</b>.`;
+            } else {
+                desc += `Performa yang sangat seimbang antara rapor harian (<b>${nr}</b>) dan ujian sekolah (<b>${us}</b>) membuatnya sukses mempertahankan posisi tangguh di 10 besar sekolah.`;
+            }
+        }
+        
+        return desc;
+    };
+
+    tbody.innerHTML = sortedData.map((item, idx) => `
+        <tr class="hover:bg-blue-50/20 transition-colors">
+            <td class="px-4 py-4 text-center">
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full ${idx === 0 ? 'bg-yellow-400 text-white shadow-md ring-4 ring-yellow-100' : idx === 1 ? 'bg-gray-300 text-gray-800 shadow-sm ring-4 ring-gray-100' : idx === 2 ? 'bg-amber-600 text-white shadow-sm ring-4 ring-amber-100' : 'bg-gray-100 text-gray-700 font-semibold'} text-lg">
+                    ${idx + 1}
+                </span>
+            </td>
+            <td class="px-4 py-4 font-bold text-gray-900 text-base">${item['NAMA SISWA']}</td>
+            <td class="px-4 py-4 bg-yellow-50/50 text-center text-xl font-black text-gray-900 border-x border-yellow-100">${parseFloat(item['NILAI SEKOLAH']).toFixed(2)}</td>
+            <td class="px-4 py-4 text-gray-700 leading-relaxed text-justify text-sm">${generateDescription(item, idx + 1)}</td>
+        </tr>
+    `).join('');
+
+    container.classList.remove('hidden');
+}
