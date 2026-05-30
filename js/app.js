@@ -559,13 +559,19 @@ function renderStudentsForNilai() {
         // Find existing grade for this subject
         const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === currentSubject) || {};
 
-        const v7 = existingGrade['7'] || '';
-        const v8 = existingGrade['8'] || '';
-        const v9 = existingGrade['9'] || '';
-        const v10 = existingGrade['10'] || '';
-        const v11 = existingGrade['11'] || '';
-        const vTulis = existingGrade['Tulis'] || '';
-        const vPrak = existingGrade['Praktik'] || '';
+        const formatVal = (v) => {
+            if (v === '' || v === undefined || v === null) return '';
+            const num = parseFloat(String(v).replace(',', '.'));
+            return isNaN(num) ? '' : num.toFixed(2);
+        };
+
+        const v7 = formatVal(existingGrade['7']);
+        const v8 = formatVal(existingGrade['8']);
+        const v9 = formatVal(existingGrade['9']);
+        const v10 = formatVal(existingGrade['10']);
+        const v11 = formatVal(existingGrade['11']);
+        const vTulis = formatVal(existingGrade['Tulis']);
+        const vPrak = formatVal(existingGrade['Praktik']);
         
         html += `
             <tr class="hover:bg-blue-50/30 transition-colors">
@@ -607,6 +613,14 @@ function attachSpreadsheetCalculations() {
             inp.addEventListener('input', () => {
                 calculateRow(tr);
                 calculateFooter();
+            });
+            inp.addEventListener('change', (e) => {
+                let v = e.target.value;
+                if(v !== '') {
+                    if(typeof v === 'string') v = v.replace(',', '.');
+                    const num = parseFloat(v);
+                    if(!isNaN(num)) e.target.value = num.toFixed(2);
+                }
             });
         });
         
