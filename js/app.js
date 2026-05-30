@@ -827,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     applyBorders(wsRekap, sortedRekap.length + 1, 5);
 
                     // 3. Sheet Per Mata Pelajaran
-                    const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+                    const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'PKN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
                     
                     subjects.forEach(subject => {
                         // Limit sheet name to 31 chars for Excel compatibility
