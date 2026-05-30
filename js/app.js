@@ -246,7 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const getVal = (className) => {
                         const el = tr.querySelector('.' + className);
-                        return el ? el.value : '';
+                        if (!el || el.value === '') return '';
+                        let v = el.value.replace(',', '.');
+                        const num = parseFloat(v);
+                        return isNaN(num) ? v : num;
                     };
 
                     const data = {
