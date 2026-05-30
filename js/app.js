@@ -912,3 +912,243 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================
+// FITUR IMPORT EXCEL & KALKULATOR RANGKING
+// ==========================================
+
+async function downloadTemplate() {
+    try {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'EduGrade';
+        const ws = workbook.addWorksheet('Template Impor Nilai');
+
+        ws.columns = [
+            { header: 'No', key: 'No', width: 5 },
+            { header: 'NIS', key: 'NIS', width: 15 },
+            { header: 'Nama Siswa', key: 'NamaSiswa', width: 35 },
+            { header: 'Smt 7', key: 'S7', width: 10 },
+            { header: 'Smt 8', key: 'S8', width: 10 },
+            { header: 'Smt 9', key: 'S9', width: 10 },
+            { header: 'Smt 10', key: 'S10', width: 10 },
+            { header: 'Smt 11', key: 'S11', width: 10 },
+            { header: 'Tulis', key: 'Tulis', width: 10 },
+            { header: 'Praktik', key: 'Praktik', width: 10 }
+        ];
+
+        // Style header
+        const rowHeader = ws.getRow(1);
+        rowHeader.eachCell((cell, colNumber) => {
+            cell.font = { bold: true };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+            cell.alignment = { horizontal: 'center' };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        // Add students
+        rawStudents.forEach((student, idx) => {
+            const no = student['NO URUT'] || (idx + 1);
+            const row = ws.addRow({
+                No: no,
+                NIS: student['NIS'],
+                NamaSiswa: student['NAMA PESERTA']
+            });
+
+            // Lock columns A, B, C visually
+            const grayFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+            row.getCell('No').fill = grayFill;
+            row.getCell('NIS').fill = grayFill;
+            row.getCell('NamaSiswa').fill = grayFill;
+
+            for(let c=1; c<=10; c++) {
+                row.getCell(c).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                if (c > 3) row.getCell(c).alignment = { horizontal: 'center' };
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, "Format_Import_Nilai.xlsx");
+
+    } catch (e) {
+        console.error(e);
+        alert('Gagal membuat template excel.');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Tombol Template
+    const btnTpl1 = document.getElementById('btnDownloadTemplate1');
+    const btnTpl2 = document.getElementById('btnDownloadTemplate2');
+    if(btnTpl1) btnTpl1.addEventListener('click', downloadTemplate);
+    if(btnTpl2) btnTpl2.addEventListener('click', downloadTemplate);
+
+    // Hitung Kalkulator Rangking
+    const calcInput = document.getElementById('calcImportFile');
+    if(calcInput) {
+        calcInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(arrayBuffer);
+                const ws = workbook.worksheets[0];
+
+                let results = [];
+                
+                ws.eachRow((row, rowNumber) => {
+                    if(rowNumber === 1) return; // skip header
+                    
+                    const nama = row.getCell(3).value;
+                    if(!nama) return;
+
+                    const getVal = (col) => {
+                        const val = row.getCell(col).value;
+                        return (typeof val === 'number') ? val : 0;
+                    };
+
+                    const s7 = getVal(4);
+                    const s8 = getVal(5);
+                    const s9 = getVal(6);
+                    const s10 = getVal(7);
+                    const s11 = getVal(8);
+                    const tulis = getVal(9);
+                    const praktik = getVal(10);
+
+                    const jml = s7 + s8 + s9 + s10 + s11;
+                    const rataNR = jml / 5;
+                    const bobot40 = rataNR * 0.4;
+                    const rataUS = (tulis + praktik) / 2;
+                    const bobot60 = rataUS * 0.6;
+                    const nilaiAkhir = bobot40 + bobot60;
+
+                    results.push({
+                        nama, jml, rataNR, bobot40, rataUS, bobot60, nilaiAkhir
+                    });
+                });
+
+                // Urutkan dan ambil top 10
+                results.sort((a,b) => b.nilaiAkhir - a.nilaiAkhir);
+                const top10 = results.slice(0, 10);
+
+                const tbody = document.getElementById('kalkulatorTableBody');
+                tbody.innerHTML = top10.map((item, idx) => `
+                    <tr class="hover:bg-gray-50 border-b border-gray-100">
+                        <td class="px-4 py-3 text-center font-semibold text-gray-700">${idx+1}</td>
+                        <td class="px-4 py-3 font-bold text-gray-900">${item.nama}</td>
+                        <td class="px-4 py-3 text-center">${item.jml.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center text-blue-600 font-medium">${item.rataNR.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center text-blue-800 font-bold">${item.bobot40.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center text-purple-600 font-medium">${item.rataUS.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center text-purple-800 font-bold">${item.bobot60.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center bg-yellow-50 font-bold text-lg">${item.nilaiAkhir.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('kalkulatorResult').classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                alert("Gagal membaca file excel kalkulator!");
+            }
+            
+            calcInput.value = '';
+        });
+    }
+
+    // Import Excel ke Input Nilai (Tersimpan)
+    const inputImport = document.getElementById('inputImportFile');
+    if(inputImport) {
+        inputImport.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if(isSyncing) {
+                alert("Mohon tunggu, sedang ada proses sinkronisasi di latar belakang!");
+                inputImport.value = '';
+                return;
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(arrayBuffer);
+                const ws = workbook.worksheets[0];
+
+                let updateCount = 0;
+
+                ws.eachRow((row, rowNumber) => {
+                    if(rowNumber === 1) return;
+                    
+                    const nama = row.getCell(3).value;
+                    const nis = row.getCell(2).value;
+
+                    if(!nama && !nis) return;
+
+                    const getVal = (col) => {
+                        const val = row.getCell(col).value;
+                        return (typeof val === 'number') ? val : '';
+                    };
+
+                    let grade = rawData.find(g => (g['NAMA SISWA'] === nama || g['NIS'] === nis) && g['MATA PELAJARAN'] === currentMapel);
+                    
+                    if(!grade) {
+                        grade = {
+                            'NAMA SISWA': nama,
+                            'NIS': nis,
+                            'MATA PELAJARAN': currentMapel
+                        };
+                        rawData.push(grade);
+                    }
+
+                    grade['7'] = getVal(4);
+                    grade['8'] = getVal(5);
+                    grade['9'] = getVal(6);
+                    grade['10'] = getVal(7);
+                    grade['11'] = getVal(8);
+                    grade['Tulis'] = getVal(9);
+                    grade['Praktik'] = getVal(10);
+                    
+                    // Kalkulasi otomatis
+                    const s7 = parseFloat(grade['7'])||0;
+                    const s8 = parseFloat(grade['8'])||0;
+                    const s9 = parseFloat(grade['9'])||0;
+                    const s10 = parseFloat(grade['10'])||0;
+                    const s11 = parseFloat(grade['11'])||0;
+                    const tulis = parseFloat(grade['Tulis'])||0;
+                    const praktik = parseFloat(grade['Praktik'])||0;
+
+                    const jml = s7+s8+s9+s10+s11;
+                    const ratanr = jml/5;
+                    const bobot40 = ratanr * 0.4;
+                    const rataus = (tulis+praktik)/2;
+                    const bobot60 = rataus * 0.6;
+                    const na = bobot40 + bobot60;
+
+                    grade['JML'] = jml;
+                    grade['RATA-RATA NR'] = ratanr;
+                    grade['BOBOT 40%'] = bobot40;
+                    grade['Rata-Rata'] = rataus;
+                    grade['BOBOT 60%'] = bobot60;
+                    grade['NILAI SEKOLAH'] = na;
+
+                    updateCount++;
+                });
+
+                if(updateCount > 0) {
+                    renderNilaiTable();
+                    alert(`${updateCount} data nilai berhasil diimpor! Data sedang disimpan ke cloud...`);
+                    saveGradesBatch();
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Gagal membaca file excel untuk diimpor!");
+            }
+            
+            inputImport.value = '';
+        });
+    }
+});
