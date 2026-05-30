@@ -318,10 +318,8 @@ async function syncData() {
     }
 
     try {
-        const [studentsResult, gradesResult] = await Promise.all([
-            api.getStudents(),
-            api.getGrades()
-        ]);
+        const studentsResult = await api.getStudents();
+        const gradesResult = await api.getGrades();
         
         if (studentsResult && !studentsResult.error) {
             rawStudents = studentsResult.data || [];
