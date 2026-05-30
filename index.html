@@ -343,15 +343,7 @@
                     <!-- Subject Tabs & Actions -->
                     <div class="mb-6 flex flex-col md:flex-row justify-between gap-4">
                         <div class="flex flex-wrap gap-2" id="subjectTabsContainer">
-                            <button class="mapel-btn active-mapel px-4 py-2 rounded-full text-sm font-medium border border-blue-200 bg-blue-50 text-blue-700 transition-colors" data-mapel="PENDIDIKAN AGAMA KRISTEN">PEND. AGAMA KRISTEN</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="PKN">PKN</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="BAHASA INDONESIA">BAHASA INDONESIA</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="MATEMATIKA">MATEMATIKA</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="IPA">IPA</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="IPS">IPS</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="SBK">SBK</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="PJOK">PJOK</button>
-                            <button class="mapel-btn px-4 py-2 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors" data-mapel="MULOK">MULOK</button>
+                            <!-- Tabs dihapus untuk tampilan All-in-One -->
                         </div>
                         <div class="flex gap-2 shrink-0">
                             <button id="btnDownloadTemplate1" class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
@@ -367,38 +359,8 @@
                     </div>
 
                     <div class="glass rounded-2xl shadow-sm border border-white p-4 relative overflow-hidden">
-                        <div class="overflow-x-auto w-full pb-4">
-                            <table class="w-full text-sm border-collapse border border-gray-300 min-w-max">
-                                <thead>
-                                    <tr class="bg-gray-100/50">
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center w-10">NO</th>
-                                        <th rowspan="2" class="border border-gray-300 px-4 py-2 min-w-[200px]">NAMA SISWA</th>
-                                        <th colspan="5" class="border border-gray-300 px-4 py-2 text-center">NILAI RAPOR (NR) SEMESTER</th>
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center text-xs">JML</th>
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center text-xs">RATA-RATA NR</th>
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center text-xs">BOBOT 40%</th>
-                                        <th colspan="2" class="border border-gray-300 px-4 py-2 text-center">NILAI UJIAN SEKOLAH</th>
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center text-xs">RATA-RATA</th>
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center text-xs">BOBOT 60%</th>
-                                        <th rowspan="2" class="border border-gray-300 px-2 py-2 text-center font-bold">NILAI SEKOLAH</th>
-                                    </tr>
-                                    <tr class="bg-gray-100/50">
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-14">7</th>
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-14">8</th>
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-14">9</th>
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-14">10</th>
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-14">11</th>
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-16">Tulis</th>
-                                        <th class="border border-gray-300 px-1 py-1 text-center w-16">PRAKTIK</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="spreadsheetBody" class="bg-white">
-                                    <tr><td colspan="15" class="text-center p-6 text-gray-500">Memuat data...</td></tr>
-                                </tbody>
-                                <tfoot id="spreadsheetFooter" class="bg-yellow-50 font-semibold border-t-2 border-gray-400">
-                                    <!-- Terendah, rata2, tertinggi akan di-render di sini via JS -->
-                                </tfoot>
-                            </table>
+                        <div id="allSubjectsContainer" class="flex flex-col gap-8 w-full">
+                            <!-- 9 Tabel Mata Pelajaran akan di-render di sini oleh JavaScript -->
                         </div>
                         
                         <div class="mt-4 flex justify-end items-center border-t border-gray-200 pt-4">

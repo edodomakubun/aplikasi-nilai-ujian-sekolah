@@ -4,7 +4,6 @@ import { logout, checkAuth } from './auth.js';
 let rawData = JSON.parse(localStorage.getItem('edu_rawData')) || [];
 let rawStudents = JSON.parse(localStorage.getItem('edu_rawStudents')) || [];
 let dashboardData = JSON.parse(localStorage.getItem('edu_dashboardData')) || [];
-let currentSubject = 'PENDIDIKAN AGAMA KRISTEN';
 
 // ==========================================
 // ROUTER & NAVIGATION
@@ -218,19 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     };
 
-    // Subject Tabs Event Listener
-    document.querySelectorAll('.mapel-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.mapel-btn').forEach(b => {
-                b.classList.remove('active-mapel', 'border-blue-200', 'bg-blue-50', 'text-blue-700');
-                b.classList.add('border-gray-200', 'bg-white', 'text-gray-600');
-            });
-            e.target.classList.remove('border-gray-200', 'bg-white', 'text-gray-600');
-            e.target.classList.add('active-mapel', 'border-blue-200', 'bg-blue-50', 'text-blue-700');
-            currentSubject = e.target.getAttribute('data-mapel');
-            renderStudentsForNilai();
-        });
-    });
+    // Subject Tabs Event Listener dihapus (All-in-One)
 
     // Batch Save Button
     const batchSaveBtn = document.getElementById('batchSaveBtn');
@@ -239,65 +226,77 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = batchSaveBtn;
             const msg = document.getElementById('batchSaveStatus');
             
-            // Kumpulkan semua data dari tabel
-            const batchData = [];
-            const rows = document.querySelectorAll('#spreadsheetBody tr');
-            rows.forEach(tr => {
-                const inputs = tr.querySelectorAll('input');
-                if (inputs.length === 0) return; // ignore loading row or empty
-                
-                const getVal = (className) => {
-                    const el = tr.querySelector('.' + className);
-                    return el ? el.value : '';
-                };
-
-                const data = {
-                    'MATA PELAJARAN': currentSubject,
-                    'NO': tr.querySelector('.cell-no').innerText,
-                    'NAMA SISWA': tr.querySelector('.cell-nama').innerText,
-                    '7': getVal('inp-7'),
-                    '8': getVal('inp-8'),
-                    '9': getVal('inp-9'),
-                    '10': getVal('inp-10'),
-                    '11': getVal('inp-11'),
-                    'JML': getVal('out-jml'),
-                    'RATA-RATA NR': getVal('out-rata-nr'),
-                    'BOBOT 40%': getVal('out-bobot40'),
-                    'Tulis': getVal('inp-tulis'),
-                    'Praktik': getVal('inp-praktik'),
-                    'Rata-Rata': getVal('out-rata-us'),
-                    'BOBOT 60%': getVal('out-bobot60'),
-                    'NILAI SEKOLAH': getVal('out-akhir')
-                };
-                
-                // Pastikan ada isinya (jika semua kosong tidak usah di-save)
-                if (data['7'] || data['8'] || data['9'] || data['10'] || data['11'] || data['Tulis'] || data['Praktik']) {
-                    batchData.push(data);
-                }
-            });
-
-            if (batchData.length === 0) {
-                msg.innerHTML = '<span class="text-red-500">Tidak ada data untuk disimpan.</span>';
-                return;
-            }
-
             btn.disabled = true;
             btn.innerHTML = 'Menyimpan...';
-            msg.innerHTML = '<span class="text-blue-500">Sedang menyimpan data...</span>';
+            msg.innerHTML = '<span class="text-blue-500">Sedang menyimpan data... (Jangan tutup halaman)</span>';
 
-            const result = await api.saveGradesBatch(batchData);
+            const tables = document.querySelectorAll('.subject-table-wrapper');
+            let successCount = 0;
+            let errorMessages = [];
+
+            for (let i = 0; i < tables.length; i++) {
+                const tableWrapper = tables[i];
+                const subject = tableWrapper.getAttribute('data-subject');
+                const batchData = [];
+                const rows = tableWrapper.querySelectorAll('tbody tr');
+                
+                rows.forEach(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    if (inputs.length === 0) return;
+                    
+                    const getVal = (className) => {
+                        const el = tr.querySelector('.' + className);
+                        return el ? el.value : '';
+                    };
+
+                    const data = {
+                        'MATA PELAJARAN': subject,
+                        'NO': tr.querySelector('.cell-no').innerText,
+                        'NAMA SISWA': tr.querySelector('.cell-nama').innerText,
+                        '7': getVal('inp-7'),
+                        '8': getVal('inp-8'),
+                        '9': getVal('inp-9'),
+                        '10': getVal('inp-10'),
+                        '11': getVal('inp-11'),
+                        'JML': getVal('out-jml'),
+                        'RATA-RATA NR': getVal('out-rata-nr'),
+                        'BOBOT 40%': getVal('out-bobot40'),
+                        'Tulis': getVal('inp-tulis'),
+                        'Praktik': getVal('inp-praktik'),
+                        'Rata-Rata': getVal('out-rata-us'),
+                        'BOBOT 60%': getVal('out-bobot60'),
+                        'NILAI SEKOLAH': getVal('out-akhir')
+                    };
+                    
+                    if (data['7'] || data['8'] || data['9'] || data['10'] || data['11'] || data['Tulis'] || data['Praktik']) {
+                        batchData.push(data);
+                    }
+                });
+
+                if (batchData.length > 0) {
+                    msg.innerHTML = `<span class="text-blue-500">Menyimpan ${subject}... (${i+1}/${tables.length})</span>`;
+                    const result = await api.saveGradesBatch(batchData);
+                    if (result && result.success) {
+                        successCount++;
+                    } else {
+                        errorMessages.push(`${subject}: ${result ? result.error : 'Kesalahan server'}`);
+                    }
+                }
+            }
 
             btn.disabled = false;
             btn.innerHTML = 'SIMPAN SELURUH NILAI';
 
-            if (result && result.success) {
-                msg.innerHTML = '<span class="text-green-600">Berhasil: ' + result.message + '</span>';
-                syncData(); // background sync
+            if (errorMessages.length > 0) {
+                msg.innerHTML = '<span class="text-red-500">Terdapat Gagal Simpan: ' + errorMessages.join(', ') + '</span>';
+            } else if (successCount > 0) {
+                msg.innerHTML = '<span class="text-green-600">Berhasil: Semua data nilai berhasil disimpan!</span>';
             } else {
-                msg.innerHTML = '<span class="text-red-500">Gagal: ' + (result ? result.error : "Kesalahan server") + '</span>';
+                msg.innerHTML = '<span class="text-gray-500">Tidak ada data untuk disimpan.</span>';
             }
             
-            setTimeout(() => { msg.innerHTML = ''; }, 3000);
+            syncData(); // background sync update
+            setTimeout(() => { msg.innerHTML = ''; }, 5000);
         });
     }
 
@@ -546,134 +545,184 @@ function renderTable(searchQuery) {
 // INPUT NILAI: STUDENT LIST FETCHING
 // ==========================================
 function renderStudentsForNilai() {
-    const tbody = document.getElementById('spreadsheetBody');
-    if (!tbody) return;
+    const container = document.getElementById('allSubjectsContainer');
+    if (!container) return;
     
     if (rawStudents.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" class="text-center p-6 text-gray-500">Belum ada data siswa. Input siswa terlebih dahulu.</td></tr>';
+        container.innerHTML = '<div class="text-center p-6 text-gray-500 bg-white rounded-xl border border-gray-200">Belum ada data siswa. Input siswa terlebih dahulu.</div>';
         return;
     }
 
-    const currentRows = tbody.querySelectorAll('tr');
-    // Smart Update: Jika jumlah baris sama, kita hanya perbarui input yang tidak sedang difokuskan
-    const isSmartUpdate = currentRows.length === rawStudents.length && currentRows.length > 0 && currentRows[0].querySelector('.inp-7');
+    const subjects = ['PENDIDIKAN AGAMA KRISTEN', 'PKN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+
+    // Smart update check
+    const existingTables = container.querySelectorAll('.subject-table-wrapper');
+    const isSmartUpdate = existingTables.length === subjects.length;
 
     if (isSmartUpdate) {
-        let hasChanges = false;
+        subjects.forEach((subject, subIdx) => {
+            const tableWrapper = existingTables[subIdx];
+            const tbody = tableWrapper.querySelector('tbody');
+            const currentRows = tbody.querySelectorAll('tr');
+            
+            rawStudents.forEach((row, idx) => {
+                const nama = row['NAMA PESERTA'];
+                const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === subject) || {};
+                
+                const formatVal = (v) => {
+                    if (v === '' || v === undefined || v === null) return '';
+                    const num = parseFloat(String(v).replace(',', '.'));
+                    return isNaN(num) ? '' : num.toFixed(2);
+                };
+
+                const tr = currentRows[idx];
+                if(!tr) return;
+                
+                const updateInput = (selector, val) => {
+                    const input = tr.querySelector(selector);
+                    if (input && input !== document.activeElement) {
+                        if (input.value !== val) {
+                            input.value = val;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    }
+                };
+                
+                updateInput('.inp-7', formatVal(existingGrade['7']));
+                updateInput('.inp-8', formatVal(existingGrade['8']));
+                updateInput('.inp-9', formatVal(existingGrade['9']));
+                updateInput('.inp-10', formatVal(existingGrade['10']));
+                updateInput('.inp-11', formatVal(existingGrade['11']));
+                updateInput('.inp-tulis', formatVal(existingGrade['Tulis']));
+                updateInput('.inp-praktik', formatVal(existingGrade['Praktik']));
+            });
+        });
+        return;
+    }
+
+    let allHtml = '';
+    
+    subjects.forEach((subject) => {
+        let rowsHtml = '';
         rawStudents.forEach((row, idx) => {
             const nama = row['NAMA PESERTA'];
-            const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === currentSubject) || {};
-            
+            const no = row['NO URUT'] || (idx + 1);
+            const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === subject) || {};
+
             const formatVal = (v) => {
                 if (v === '' || v === undefined || v === null) return '';
                 const num = parseFloat(String(v).replace(',', '.'));
                 return isNaN(num) ? '' : num.toFixed(2);
             };
 
-            const tr = currentRows[idx];
+            const v7 = formatVal(existingGrade['7']);
+            const v8 = formatVal(existingGrade['8']);
+            const v9 = formatVal(existingGrade['9']);
+            const v10 = formatVal(existingGrade['10']);
+            const v11 = formatVal(existingGrade['11']);
+            const vTulis = formatVal(existingGrade['Tulis']);
+            const vPrak = formatVal(existingGrade['Praktik']);
             
-            const updateInput = (selector, val) => {
-                const input = tr.querySelector(selector);
-                if (input && input !== document.activeElement) {
-                    if (input.value !== val) {
-                        input.value = val;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        hasChanges = true;
-                    }
-                }
-            };
-            
-            updateInput('.inp-7', formatVal(existingGrade['7']));
-            updateInput('.inp-8', formatVal(existingGrade['8']));
-            updateInput('.inp-9', formatVal(existingGrade['9']));
-            updateInput('.inp-10', formatVal(existingGrade['10']));
-            updateInput('.inp-11', formatVal(existingGrade['11']));
-            updateInput('.inp-tulis', formatVal(existingGrade['Tulis']));
-            updateInput('.inp-praktik', formatVal(existingGrade['Praktik']));
+            rowsHtml += `
+                <tr class="hover:bg-blue-50/30 transition-colors">
+                    <td class="border border-gray-300 px-2 py-1 text-center text-gray-700 font-medium cell-no">${no}</td>
+                    <td class="border border-gray-300 px-3 py-1 font-medium text-gray-900 cell-nama">${nama}</td>
+                    
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v7}" class="row-calc inp-7 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v8}" class="row-calc inp-8 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v9}" class="row-calc inp-9 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v10}" class="row-calc inp-10 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v11}" class="row-calc inp-11 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    
+                    <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-jml w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
+                    <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-rata-nr w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
+                    <td class="border border-gray-300 p-0 bg-yellow-100"><input type="text" readonly class="out-bobot40 w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-blue-700"></td>
+                    
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${vTulis}" class="row-calc inp-tulis w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${vPrak}" class="row-calc inp-praktik w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
+                    
+                    <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-rata-us w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
+                    <td class="border border-gray-300 p-0 bg-yellow-100"><input type="text" readonly class="out-bobot60 w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-purple-700"></td>
+                    
+                    <td class="border border-gray-300 p-0 bg-yellow-200"><input type="text" readonly class="out-akhir w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-gray-900 text-sm"></td>
+                </tr>
+            `;
         });
         
-        // Memicu event input secara manual akan merangsang kalkulasi jika ada perubahan
-        return;
-    }
-
-    let html = '';
-    rawStudents.forEach((row, idx) => {
-        const nama = row['NAMA PESERTA'];
-        const no = row['NO URUT'] || (idx + 1);
-        
-        // Find existing grade for this subject
-        const existingGrade = rawData.find(g => g['NAMA SISWA'] === nama && g['MATA PELAJARAN'] === currentSubject) || {};
-
-        const formatVal = (v) => {
-            if (v === '' || v === undefined || v === null) return '';
-            const num = parseFloat(String(v).replace(',', '.'));
-            return isNaN(num) ? '' : num.toFixed(2);
-        };
-
-        const v7 = formatVal(existingGrade['7']);
-        const v8 = formatVal(existingGrade['8']);
-        const v9 = formatVal(existingGrade['9']);
-        const v10 = formatVal(existingGrade['10']);
-        const v11 = formatVal(existingGrade['11']);
-        const vTulis = formatVal(existingGrade['Tulis']);
-        const vPrak = formatVal(existingGrade['Praktik']);
-        
-        html += `
-            <tr class="hover:bg-blue-50/30 transition-colors">
-                <td class="border border-gray-300 px-2 py-1 text-center text-gray-700 font-medium cell-no">${no}</td>
-                <td class="border border-gray-300 px-3 py-1 font-medium text-gray-900 cell-nama">${nama}</td>
-                
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v7}" class="row-calc inp-7 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v8}" class="row-calc inp-8 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v9}" class="row-calc inp-9 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v10}" class="row-calc inp-10 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${v11}" class="row-calc inp-11 w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                
-                <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-jml w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
-                <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-rata-nr w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
-                <td class="border border-gray-300 p-0 bg-yellow-100"><input type="text" readonly class="out-bobot40 w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-blue-700"></td>
-                
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${vTulis}" class="row-calc inp-tulis w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                <td class="border border-gray-300 p-0"><input type="number" step="0.01" value="${vPrak}" class="row-calc inp-praktik w-full h-full px-2 py-1 border-0 focus:ring-2 focus:ring-blue-500 text-center bg-transparent"></td>
-                
-                <td class="border border-gray-300 p-0 bg-yellow-50"><input type="text" readonly class="out-rata-us w-full h-full px-1 py-1 border-0 text-center font-medium bg-transparent text-gray-700"></td>
-                <td class="border border-gray-300 p-0 bg-yellow-100"><input type="text" readonly class="out-bobot60 w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-purple-700"></td>
-                
-                <td class="border border-gray-300 p-0 bg-yellow-200"><input type="text" readonly class="out-akhir w-full h-full px-1 py-1 border-0 text-center font-bold bg-transparent text-gray-900 text-sm"></td>
-            </tr>
+        allHtml += `
+            <div class="subject-table-wrapper border border-gray-200 rounded-xl overflow-hidden shadow-sm" data-subject="${subject}">
+                <div class="bg-blue-50 px-4 py-3 border-b border-gray-200">
+                    <h2 class="text-lg font-bold text-blue-800 uppercase flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        ${subject}
+                    </h2>
+                </div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-sm border-collapse border-b border-gray-300 min-w-max">
+                        <thead>
+                            <tr class="bg-gray-100/80">
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-2 py-2 text-center w-10">NO</th>
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-4 py-2 min-w-[200px]">NAMA SISWA</th>
+                                <th colspan="5" class="border-b border-r border-gray-300 px-4 py-2 text-center">NILAI RAPOR (NR) SEMESTER</th>
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-2 py-2 text-center text-xs">JML</th>
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-2 py-2 text-center text-xs">RATA-RATA NR</th>
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-2 py-2 text-center text-xs">BOBOT 40%</th>
+                                <th colspan="2" class="border-b border-r border-gray-300 px-4 py-2 text-center">NILAI UJIAN SEKOLAH</th>
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-2 py-2 text-center text-xs">RATA-RATA</th>
+                                <th rowspan="2" class="border-b border-r border-gray-300 px-2 py-2 text-center text-xs">BOBOT 60%</th>
+                                <th rowspan="2" class="border-b border-gray-300 px-2 py-2 text-center font-bold">NILAI SEKOLAH</th>
+                            </tr>
+                            <tr class="bg-gray-100/80">
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-14">7</th>
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-14">8</th>
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-14">9</th>
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-14">10</th>
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-14">11</th>
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-16">Tulis</th>
+                                <th class="border-b border-r border-gray-300 px-1 py-1 text-center w-16">PRAKTIK</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            ${rowsHtml}
+                        </tbody>
+                        <tfoot class="bg-yellow-50 font-semibold border-t-2 border-gray-400">
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
         `;
     });
-    tbody.innerHTML = html;
     
-    // Attach event listeners for calculations
+    container.innerHTML = allHtml;
     attachSpreadsheetCalculations();
 }
 
 function attachSpreadsheetCalculations() {
-    const rows = document.querySelectorAll('#spreadsheetBody tr');
+    const wrappers = document.querySelectorAll('.subject-table-wrapper');
     
-    rows.forEach(tr => {
-        const inputs = tr.querySelectorAll('.row-calc');
-        inputs.forEach(inp => {
-            inp.addEventListener('input', () => {
-                calculateRow(tr);
-                calculateFooter();
+    wrappers.forEach(wrapper => {
+        const rows = wrapper.querySelectorAll('tbody tr');
+        rows.forEach(tr => {
+            const inputs = tr.querySelectorAll('.row-calc');
+            inputs.forEach(inp => {
+                inp.addEventListener('input', () => {
+                    calculateRow(tr);
+                    calculateFooter(wrapper);
+                });
+                inp.addEventListener('change', (e) => {
+                    let v = e.target.value;
+                    if(v !== '') {
+                        if(typeof v === 'string') v = v.replace(',', '.');
+                        const num = parseFloat(v);
+                        if(!isNaN(num)) e.target.value = num.toFixed(2);
+                    }
+                });
             });
-            inp.addEventListener('change', (e) => {
-                let v = e.target.value;
-                if(v !== '') {
-                    if(typeof v === 'string') v = v.replace(',', '.');
-                    const num = parseFloat(v);
-                    if(!isNaN(num)) e.target.value = num.toFixed(2);
-                }
-            });
+            // Initial Calculation
+            calculateRow(tr);
         });
-        
-        // Initial Calculation
-        calculateRow(tr);
+        calculateFooter(wrapper);
     });
-    
-    calculateFooter();
 }
 
 function calculateRow(tr) {
@@ -692,7 +741,7 @@ function calculateRow(tr) {
     const hasRapor = [7, 8, 9, 10, 11].some(sem => tr.querySelector('.inp-' + sem).value !== '');
     const jml = n7 + n8 + n9 + n10 + n11;
     
-    // Assume denominator is always 5 for Rapor based on screenshot
+    // Assume denominator is always 5 for Rapor
     const rataNr = hasRapor ? (jml / 5) : 0;
     const bobot40 = rataNr * 0.4;
     
@@ -716,8 +765,8 @@ function calculateRow(tr) {
     }
 }
 
-function calculateFooter() {
-    const tfoot = document.getElementById('spreadsheetFooter');
+function calculateFooter(wrapper) {
+    const tfoot = wrapper.querySelector('tfoot');
     if (!tfoot) return;
     
     const columns = [
@@ -728,7 +777,7 @@ function calculateFooter() {
     const stats = {};
     columns.forEach(c => stats[c] = { sum: 0, min: 99999, max: -99999, count: 0 });
     
-    const rows = document.querySelectorAll('#spreadsheetBody tr');
+    const rows = wrapper.querySelectorAll('tbody tr');
     rows.forEach(tr => {
         columns.forEach(c => {
             const input = tr.querySelector('.' + c);
@@ -1143,103 +1192,106 @@ document.addEventListener('DOMContentLoaded', () => {
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = new ExcelJS.Workbook();
                 await workbook.xlsx.load(arrayBuffer);
-                let ws = workbook.worksheets.find(w => w.name.toUpperCase() === currentSubject.toUpperCase() || w.name.substring(0,31).toUpperCase() === currentSubject.substring(0,31).toUpperCase());
-                if (!ws) {
-                    ws = workbook.worksheets[0]; // fallback
-                }
-
                 let updateCount = 0;
-                
-                // Deteksi kolom dinamis
-                let colNama = 3, colNis = 2;
-                let colS7 = 4, colS8 = 5, colS9 = 6, colS10 = 7, colS11 = 8;
-                let colTulis = 9, colPrak = 10;
-                
-                const headerRow = ws.getRow(1);
-                if (headerRow) {
-                    headerRow.eachCell((cell, colNumber) => {
-                        const val = String(cell.value).toUpperCase();
-                        if(val.includes('NAMA')) colNama = colNumber;
-                        else if(val === 'NIS') colNis = colNumber;
-                        else if(val === '7' || val.includes('SMT 7')) colS7 = colNumber;
-                        else if(val === '8' || val.includes('SMT 8')) colS8 = colNumber;
-                        else if(val === '9' || val.includes('SMT 9')) colS9 = colNumber;
-                        else if(val === '10' || val.includes('SMT 10')) colS10 = colNumber;
-                        else if(val === '11' || val.includes('SMT 11')) colS11 = colNumber;
-                        else if(val.includes('TULIS')) colTulis = colNumber;
-                        else if(val.includes('PRAKTIK')) colPrak = colNumber;
-                    });
-                }
 
-                ws.eachRow((row, rowNumber) => {
-                    if(rowNumber === 1) return;
+                const validSubjects = ['PENDIDIKAN AGAMA KRISTEN', 'PKN', 'BAHASA INDONESIA', 'MATEMATIKA', 'IPA', 'IPS', 'SBK', 'PJOK', 'MULOK'];
+
+                workbook.worksheets.forEach(ws => {
+                    const sheetName = ws.name.toUpperCase();
+                    let subject = validSubjects.find(s => sheetName === s || sheetName.substring(0,31) === s.substring(0,31));
                     
-                    const nama = row.getCell(colNama).value;
-                    const nis = row.getCell(colNis).value;
+                    if (!subject) return; // Ignore irrelevant sheets
 
-                    if(!nama && !nis) return;
-
-                    const getVal = (col) => {
-                        let val = row.getCell(col).value;
-                        if(typeof val === 'object' && val !== null) val = val.result || val.text || '';
-                        if(typeof val === 'string') val = val.replace(',', '.');
-                        const parsed = parseFloat(val);
-                        return isNaN(parsed) ? '' : parsed;
-                    };
-
-                    let grade = rawData.find(g => (g['NAMA SISWA'] === nama || (nis && g['NIS'] === nis)) && g['MATA PELAJARAN'] === currentSubject);
+                    let colNama = 3, colNis = 2;
+                    let colS7 = 4, colS8 = 5, colS9 = 6, colS10 = 7, colS11 = 8;
+                    let colTulis = 9, colPrak = 10;
                     
-                    if(!grade) {
-                        grade = {
-                            'NAMA SISWA': nama || '',
-                            'NIS': nis || '',
-                            'MATA PELAJARAN': currentSubject
-                        };
-                        rawData.push(grade);
+                    const headerRow = ws.getRow(1);
+                    if (headerRow) {
+                        headerRow.eachCell((cell, colNumber) => {
+                            const val = String(cell.value).toUpperCase();
+                            if(val.includes('NAMA')) colNama = colNumber;
+                            else if(val === 'NIS') colNis = colNumber;
+                            else if(val === '7' || val.includes('SMT 7')) colS7 = colNumber;
+                            else if(val === '8' || val.includes('SMT 8')) colS8 = colNumber;
+                            else if(val === '9' || val.includes('SMT 9')) colS9 = colNumber;
+                            else if(val === '10' || val.includes('SMT 10')) colS10 = colNumber;
+                            else if(val === '11' || val.includes('SMT 11')) colS11 = colNumber;
+                            else if(val.includes('TULIS')) colTulis = colNumber;
+                            else if(val.includes('PRAKTIK')) colPrak = colNumber;
+                        });
                     }
 
-                    grade['7'] = getVal(colS7);
-                    grade['8'] = getVal(colS8);
-                    grade['9'] = getVal(colS9);
-                    grade['10'] = getVal(colS10);
-                    grade['11'] = getVal(colS11);
-                    grade['Tulis'] = getVal(colTulis);
-                    grade['Praktik'] = getVal(colPrak);
-                    
-                    // Kalkulasi otomatis
-                    const parseSafe = (v) => {
-                        if(typeof v === 'string') v = v.replace(',', '.');
-                        const parsed = parseFloat(v);
-                        return isNaN(parsed) ? 0 : parsed;
-                    };
-                    const s7 = parseSafe(grade['7']);
-                    const s8 = parseSafe(grade['8']);
-                    const s9 = parseSafe(grade['9']);
-                    const s10 = parseSafe(grade['10']);
-                    const s11 = parseSafe(grade['11']);
-                    const tulis = parseSafe(grade['Tulis']);
-                    const praktik = parseSafe(grade['Praktik']);
+                    ws.eachRow((row, rowNumber) => {
+                        if(rowNumber === 1) return;
+                        
+                        const nama = row.getCell(colNama).value;
+                        const nis = row.getCell(colNis).value;
 
-                    const jml = s7+s8+s9+s10+s11;
-                    const ratanr = jml/5;
-                    const bobot40 = ratanr * 0.4;
-                    const rataus = (tulis+praktik)/2;
-                    const bobot60 = rataus * 0.6;
-                    const na = bobot40 + bobot60;
+                        if(!nama && !nis) return;
 
-                    grade['JML'] = jml;
-                    grade['RATA-RATA NR'] = ratanr;
-                    grade['BOBOT 40%'] = bobot40;
-                    grade['Rata-Rata'] = rataus;
-                    grade['BOBOT 60%'] = bobot60;
-                    grade['NILAI SEKOLAH'] = na;
+                        const getVal = (col) => {
+                            let val = row.getCell(col).value;
+                            if(typeof val === 'object' && val !== null) val = val.result || val.text || '';
+                            if(typeof val === 'string') val = val.replace(',', '.');
+                            const parsed = parseFloat(val);
+                            return isNaN(parsed) ? '' : parsed;
+                        };
 
-                    updateCount++;
+                        let grade = rawData.find(g => (g['NAMA SISWA'] === nama || (nis && g['NIS'] === nis)) && g['MATA PELAJARAN'] === subject);
+                        
+                        if(!grade) {
+                            grade = {
+                                'NAMA SISWA': nama || '',
+                                'NIS': nis || '',
+                                'MATA PELAJARAN': subject
+                            };
+                            rawData.push(grade);
+                        }
+
+                        grade['7'] = getVal(colS7);
+                        grade['8'] = getVal(colS8);
+                        grade['9'] = getVal(colS9);
+                        grade['10'] = getVal(colS10);
+                        grade['11'] = getVal(colS11);
+                        grade['Tulis'] = getVal(colTulis);
+                        grade['Praktik'] = getVal(colPrak);
+                        
+                        // Kalkulasi otomatis
+                        const parseSafe = (v) => {
+                            if(typeof v === 'string') v = v.replace(',', '.');
+                            const parsed = parseFloat(v);
+                            return isNaN(parsed) ? 0 : parsed;
+                        };
+                        const s7 = parseSafe(grade['7']);
+                        const s8 = parseSafe(grade['8']);
+                        const s9 = parseSafe(grade['9']);
+                        const s10 = parseSafe(grade['10']);
+                        const s11 = parseSafe(grade['11']);
+                        const tulis = parseSafe(grade['Tulis']);
+                        const praktik = parseSafe(grade['Praktik']);
+
+                        const jml = s7+s8+s9+s10+s11;
+                        const ratanr = jml/5;
+                        const bobot40 = ratanr * 0.4;
+                        const rataus = (tulis+praktik)/2;
+                        const bobot60 = rataus * 0.6;
+                        const na = bobot40 + bobot60;
+
+                        grade['JML'] = jml;
+                        grade['RATA-RATA NR'] = ratanr;
+                        grade['BOBOT 40%'] = bobot40;
+                        grade['Rata-Rata'] = rataus;
+                        grade['BOBOT 60%'] = bobot60;
+                        grade['NILAI SEKOLAH'] = na;
+
+                        updateCount++;
+                    });
                 });
 
                 if(updateCount > 0) {
                     renderStudentsForNilai();
-                    alert(`${updateCount} data nilai berhasil diimpor! Data sedang disimpan ke cloud...`);
+                    alert(`${updateCount} data nilai dari seluruh sheet berhasil diimpor! Data sedang disimpan ke cloud...`);
                     const batchSaveBtn = document.getElementById('batchSaveBtn');
                     if (batchSaveBtn) {
                         batchSaveBtn.click();
