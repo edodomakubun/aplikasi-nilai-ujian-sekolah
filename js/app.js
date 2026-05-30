@@ -1092,13 +1092,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         return (typeof val === 'number') ? val : '';
                     };
 
-                    let grade = rawData.find(g => (g['NAMA SISWA'] === nama || g['NIS'] === nis) && g['MATA PELAJARAN'] === currentMapel);
+                    let grade = rawData.find(g => (g['NAMA SISWA'] === nama || g['NIS'] === nis) && g['MATA PELAJARAN'] === currentSubject);
                     
                     if(!grade) {
                         grade = {
                             'NAMA SISWA': nama,
                             'NIS': nis,
-                            'MATA PELAJARAN': currentMapel
+                            'MATA PELAJARAN': currentSubject
                         };
                         rawData.push(grade);
                     }
