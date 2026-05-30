@@ -835,25 +835,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // Menggunakan fitur native browser yang lebih stabil daripada html2pdf
-            // Kita sembunyikan semua elemen lain kecuali container saat mencetak
+            btnExportPDF.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent mr-2"></div> Memproses...';
+            btnExportPDF.disabled = true;
             
-            // Tambahkan class khusus ke body untuk mode cetak
-            document.body.classList.add('print-mode');
+            // Persiapan DOM: Set value attribute agar terbaca oleh html2canvas
+            const inputs = container.querySelectorAll('input');
+            inputs.forEach(inp => {
+                if (inp.value) inp.setAttribute('value', inp.value);
+            });
             
-            // Tunggu sebentar agar render selesai
-            setTimeout(() => {
-                window.print();
-                
-                // Kembalikan ke normal setelah selesai print
-                document.body.classList.remove('print-mode');
-                
-                btnExportPDF.innerHTML = `
-                    <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    Ekspor PDF
-                `;
-                btnExportPDF.disabled = false;
-            }, 500);
+            const opt = {
+                margin:       [10, 10, 10, 10], // margin dalam milimeter
+                filename:     'Data_Nilai_Sekolah.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a3', orientation: 'landscape' }
+            };
+            
+            try {
+                await html2pdf().set(opt).from(container).save();
+            } catch(e) {
+                console.error("Gagal export PDF:", e);
+                alert("Gagal melakukan export PDF. Pastikan library termuat.");
+            }
             
             btnExportPDF.innerHTML = `
                 <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
