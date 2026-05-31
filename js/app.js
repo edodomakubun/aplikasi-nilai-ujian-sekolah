@@ -8,64 +8,19 @@ let dashboardData = JSON.parse(localStorage.getItem('edu_dashboardData')) || [];
 // ==========================================
 // ROUTER & NAVIGATION
 // ==========================================
-function navigateTo(hash) {
-    if (!hash || hash === '#' || hash === '') hash = '#dashboard';
-    
-    // Hide all spa-contents
-    document.querySelectorAll('.spa-content').forEach(el => {
-        el.classList.add('hidden');
-        el.classList.remove('block');
-    });
-
-    // Reset all nav link active states
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('bg-blue-50', 'text-blue-700');
-        link.classList.add('text-gray-600');
-    });
-    document.querySelectorAll('.nav-link-mobile').forEach(link => {
-        link.classList.remove('text-blue-600');
-        link.classList.add('text-gray-500');
-    });
-    
-    const targetId = hash.replace('#', '') + '-content';
-    const targetEl = document.getElementById(targetId);
-    
-    if (targetEl) {
-        targetEl.classList.remove('hidden');
-        targetEl.classList.add('block');
-        
-        // Active Nav Desktop
-        const activeLink = document.querySelector(`.nav-link[href="${hash}"]`);
-        if (activeLink) {
-            activeLink.classList.remove('text-gray-600');
-            activeLink.classList.add('bg-blue-50', 'text-blue-700');
-        }
-
-        // Active Nav Mobile
-        const activeLinkMobile = document.querySelector(`.nav-link-mobile[href="${hash}"]`);
-        if (activeLinkMobile) {
-            activeLinkMobile.classList.remove('text-gray-500');
-            activeLinkMobile.classList.add('text-blue-600');
-        }
-        
-        // Refresh active view with cache
-        refreshActiveView();
-    }
-}
-
-// Listen to hash changes for SPA routing
-window.addEventListener('hashchange', () => {
-    navigateTo(window.location.hash);
-});
+// ==========================================
+// ROUTER & NAVIGATION (REMOVED - MIGRATED TO MPA)
+// ==========================================
+// SPA Routing has been removed. Each page now loads independently.
 
 // ==========================================
 // INITIALIZATION & EVENT LISTENERS
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Initial Route
+    // Initial Load Data
     if(localStorage.getItem('auth_token')) {
-        navigateTo(window.location.hash);
+        syncData();
     }
     
     // Auth Buttons
@@ -388,19 +343,21 @@ function refreshActiveView() {
     const content = document.getElementById('dashboardStats');
     if(loader && !firstLoad) {
         loader.classList.add('hidden');
-        content.classList.remove('hidden');
+        if(content) content.classList.remove('hidden');
     }
 
-    const hash = window.location.hash || '#dashboard';
-    if (hash === '#dashboard') {
+    if (document.getElementById('dashboard-content')) {
         processStats(dashboardData);
         renderRanking(dashboardData);
         renderTable(document.getElementById('searchInput')?.value || '');
-    } else if (hash === '#siswa') {
+    } 
+    if (document.getElementById('siswa-content')) {
         renderSiswaTable(document.getElementById('searchSiswaInput')?.value || '');
-    } else if (hash === '#nilai') {
+    } 
+    if (document.getElementById('nilai-content')) {
         renderStudentsForNilai();
-    } else if (hash === '#kalkulator') {
+    } 
+    if (document.getElementById('kalkulator-content')) {
         renderKalkulatorRangking();
     }
 }

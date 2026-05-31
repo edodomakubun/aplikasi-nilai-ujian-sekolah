@@ -3,42 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pengelola Nilai Ujian</title>
+    <title>EduGrade - Login</title>
     <!-- Tailwind CSS v4 CDN -->
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.18); }
-        .gradient-text { background: linear-gradient(to right, #2563eb, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        /* SPA Views will use Tailwind's hidden class for toggling instead of custom CSS */
-        
-        /* Login Background */
         .login-bg { background-image: url('https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop'); background-size: cover; background-position: center; }
     </style>
     <!-- Script Module Setup -->
     <script type="module" src="js/auth.js"></script>
-    <!-- ExcelJS & FileSaver for Excel Export with Styling -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- jsPDF & AutoTable for PDF Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script type="module" src="js/app.js"></script>
-</head>
-<body class="text-slate-800 antialiased h-screen w-screen overflow-hidden bg-gradient-to-br from-indigo-50 to-blue-100 flex">
+    <script type="module">
+        import { isLoggedIn, login } from './js/auth.js';
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isLoggedIn()) {
+                window.location.href = 'dashboard.html';
+            }
 
-    <!-- ============================================== -->
-    <!-- VIEW 1: LOGIN PAGE                             -->
-    <!-- ============================================== -->
-    <section id="login-view" class="w-full h-full relative login-bg hidden">
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const u = document.getElementById('username').value;
+                    const p = document.getElementById('password').value;
+                    const msg = document.getElementById('loginMessage');
+                    
+                    const btn = document.getElementById('loginBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = 'Memverifikasi...';
+                    
+                    setTimeout(() => {
+                        if (login(u, p)) {
+                            window.location.href = 'dashboard.html';
+                        } else {
+                            msg.innerText = 'Username atau Password salah!';
+                            msg.classList.remove('hidden');
+                            btn.disabled = false;
+                            btn.innerHTML = 'Masuk ke Dashboard';
+                        }
+                    }, 800);
+                });
+            }
+        });
+    </script>
+</head>
+<body class="text-slate-800 antialiased h-screen w-screen overflow-hidden flex">
+    <section id="login-view" class="w-full h-full relative login-bg">
         <div class="absolute inset-0 bg-blue-900/40 backdrop-blur-sm"></div>
         <div class="w-full h-full flex items-center justify-center relative z-10 p-4">
             <div class="glass w-full max-w-md p-8 rounded-3xl shadow-2xl">
@@ -73,7 +85,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" id="loginBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:-translate-y-0.5">
+                    <button type="submit" id="loginBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all transform hover:-translate-y-0.5">
                         Masuk ke Dashboard
                     </button>
                     
@@ -82,345 +94,5 @@
             </div>
         </div>
     </section>
-
-    <!-- ============================================== -->
-    <!-- VIEW 2: MAIN DASHBOARD AREA                    -->
-    <!-- ============================================== -->
-    <section id="app-view" class="w-full h-full flex-col md:flex-row hidden">
-        
-        <!-- Sidebar -->
-        <aside class="w-64 glass border-r border-white/50 flex flex-col hidden md:flex z-20">
-            <div class="h-16 flex items-center px-6 border-b border-white/50">
-                <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                <span class="ml-3 font-bold text-xl gradient-text tracking-tight">EduGrade</span>
-            </div>
-            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto" id="sidebarNav">
-                <a href="#dashboard" data-target="dashboard-content" class="nav-link bg-blue-50 text-blue-700 flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors">
-                    <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                    Dashboard
-                </a>
-                <a href="#siswa" data-target="siswa-content" class="nav-link text-gray-600 hover:bg-white/50 hover:text-gray-900 flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors">
-                    <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    Data Siswa
-                </a>
-                <a href="#nilai" data-target="nilai-content" class="nav-link text-gray-600 hover:bg-white/50 hover:text-gray-900 flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors">
-                    <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                    Input Nilai
-                </a>
-                <a href="#kalkulator" data-target="kalkulator-content" class="nav-link text-gray-600 hover:bg-white/50 hover:text-gray-900 flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors">
-                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    Kalkulator Rangking
-                </a>
-            </nav>
-            <div class="p-4 border-t border-white/50">
-                <button id="logoutBtn" class="w-full flex items-center justify-center px-4 py-2 border border-red-200 text-sm font-medium rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
-                    <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    Logout
-                </button>
-            </div>
-        </aside>
-
-        <!-- Main Content Wrapper -->
-        <div class="flex-1 flex flex-col bg-gray-50/50 relative overflow-hidden">
-        <!-- Global Sync Indicator -->
-        <div id="syncIndicator" class="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-3 z-50 transform transition-transform translate-y-20 opacity-0">
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-            <span class="text-sm font-medium">Menyinkronkan data...</span>
-        </div>
-            
-            <!-- Mobile Header -->
-            <header class="md:hidden glass h-16 flex items-center justify-between px-4 z-10 border-b border-white/50">
-                <span class="font-bold text-lg gradient-text">EduGrade</span>
-                <div class="flex gap-3" id="mobileNav">
-                    <a href="#dashboard" data-target="dashboard-content" class="nav-link-mobile text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></a>
-                    <a href="#siswa" data-target="siswa-content" class="nav-link-mobile text-gray-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg></a>
-                    <a href="#nilai" data-target="nilai-content" class="nav-link-mobile text-gray-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg></a>
-                    <button id="logoutBtnMobile" class="text-red-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></button>
-                </div>
-            </header>
-
-            <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 relative">
-                
-                <!-- CONTENT 1: DASHBOARD -->
-                <div id="dashboard-content" class="spa-content block max-w-6xl mx-auto">
-                    <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h1 class="text-3xl font-bold text-gray-900">Dashboard Statistik</h1>
-                            <p class="mt-1 text-sm text-gray-500">Ringkasan nilai ujian sekolah otomatisasi.</p>
-                        </div>
-                        <div class="flex gap-2 flex-wrap">
-                            <button id="exportExcelBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                Ekspor ke Excel
-                            </button>
-                            <button id="refreshBtn" class="bg-white/80 hover:bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-200 rounded-lg shadow-sm transition-all flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                Refresh Data
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="loader" class="hidden flex justify-center items-center py-12">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                    </div>
-
-                    <div id="dashboardStats">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <div class="glass rounded-xl p-6 shadow-sm border border-white hover:shadow-md transition-shadow">
-                                <div class="flex items-center">
-                                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                                    </div>
-                                    <div class="ml-4">
-                                        <h2 class="text-sm font-medium text-gray-500">Total Siswa</h2>
-                                        <p id="statTotalSiswa" class="text-2xl font-bold text-gray-900">-</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="glass rounded-xl p-6 shadow-sm border border-white hover:shadow-md transition-shadow">
-                                <div class="flex items-center">
-                                    <div class="p-3 rounded-full bg-green-100 text-green-600">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                    </div>
-                                    <div class="ml-4">
-                                        <h2 class="text-sm font-medium text-gray-500">Rata-Rata US</h2>
-                                        <p id="statRataRata" class="text-2xl font-bold text-gray-900">-</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="glass rounded-xl p-6 shadow-sm border border-white hover:shadow-md transition-shadow">
-                                <div class="flex items-center">
-                                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
-                                    </div>
-                                    <div class="ml-4">
-                                        <h2 class="text-sm font-medium text-gray-500">Nilai Tertinggi</h2>
-                                        <p id="statTertinggi" class="text-2xl font-bold text-gray-900">-</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div class="glass rounded-2xl shadow-sm border border-white overflow-hidden lg:col-span-1 flex flex-col">
-                                <div class="bg-white/50 border-b border-gray-100 px-6 py-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">Top 10 Rangking</h3>
-                                </div>
-                                <div class="p-0 overflow-y-auto" style="max-height: 500px;">
-                                    <ul id="rankingList" class="divide-y divide-gray-100">
-                                        <li class="p-6 text-center text-gray-500 text-sm">Memuat data...</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            <div class="glass rounded-2xl shadow-sm border border-white overflow-hidden lg:col-span-2 flex flex-col">
-                                <div class="bg-white/50 border-b border-gray-100 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                                    <h3 class="text-lg font-semibold text-gray-800">Data Nilai Siswa</h3>
-                                    <div class="relative">
-                                        <input type="text" id="searchInput" placeholder="Cari nama siswa..." class="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="overflow-x-auto w-full">
-                                    <table class="min-w-full divide-y divide-gray-200 w-full text-left whitespace-nowrap">
-                                        <thead class="bg-gray-50/50 text-xs text-gray-500 uppercase tracking-wider">
-                                            <tr>
-                                                <th class="px-6 py-3 font-medium">No</th>
-                                                <th class="px-6 py-3 font-medium">Nama Siswa</th>
-                                                <th class="px-6 py-3 font-medium text-center">Smstr 7-11 Rata²</th>
-                                                <th class="px-6 py-3 font-medium text-center">US Rata²</th>
-                                                <th class="px-6 py-3 font-medium text-center text-blue-600">Nilai Sekolah</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="gradesTableBody" class="bg-white/30 divide-y divide-gray-100 text-sm">
-                                            <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data. Silakan refresh.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CONTENT 2: DATA SISWA (TABEL & CRUD) -->
-                <div id="siswa-content" class="spa-content hidden max-w-full mx-auto">
-                    <div class="mb-8 flex flex-col sm:flex-row justify-between sm:items-end gap-4">
-                        <div>
-                            <h1 class="text-3xl font-bold text-gray-900">Data Siswa</h1>
-                            <p class="mt-1 text-sm text-gray-500">Kelola daftar seluruh siswa yang terdaftar dalam sistem.</p>
-                        </div>
-                        <button id="openAddSiswaModal" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-colors flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            Tambah Siswa Baru
-                        </button>
-                    </div>
-
-                    <div class="glass rounded-2xl shadow-sm border border-white overflow-hidden flex flex-col">
-                        <div class="bg-white/50 border-b border-gray-100 px-6 py-4 flex justify-between items-center">
-                            <h3 class="text-lg font-semibold text-gray-800">Daftar Keseluruhan Siswa</h3>
-                            <div class="relative">
-                                <input type="text" id="searchSiswaInput" placeholder="Cari nama atau NIS..." class="w-64 pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto w-full">
-                            <table class="min-w-full divide-y divide-gray-200 text-left whitespace-nowrap">
-                                <thead class="bg-gray-50/50 text-xs text-gray-500 uppercase tracking-wider">
-                                    <tr>
-                                        <th class="px-4 py-3 font-medium text-center">No Urut</th>
-                                        <th class="px-4 py-3 font-medium">NIS</th>
-                                        <th class="px-4 py-3 font-medium">NISN</th>
-                                        <th class="px-4 py-3 font-medium">No Peserta</th>
-                                        <th class="px-4 py-3 font-medium">No Absen</th>
-                                        <th class="px-4 py-3 font-medium">Nama Peserta</th>
-                                        <th class="px-4 py-3 font-medium">Jenis Kelamin</th>
-                                        <th class="px-4 py-3 font-medium">Tempat Lahir</th>
-                                        <th class="px-4 py-3 font-medium">Tanggal Lahir</th>
-                                        <th class="px-4 py-3 font-medium">Nama Orang Tua</th>
-                                        <th class="px-4 py-3 font-medium text-center sticky right-0 bg-gray-50">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="siswaTableBody" class="bg-white/30 divide-y divide-gray-100 text-sm">
-                                    <tr><td colspan="11" class="px-6 py-8 text-center text-gray-500">Memuat data siswa...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- MODAL: FORM INPUT/EDIT SISWA -->
-                <div id="siswaModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                            <h2 class="text-2xl font-bold text-gray-900" id="siswaModalTitle">Tambah Data Siswa</h2>
-                            <button id="closeSiswaModal" class="text-gray-400 hover:text-gray-600 transition-colors">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                        </div>
-                        <div class="p-8">
-                            <form id="siswaForm" class="space-y-6">
-                                <input type="hidden" id="siswaMode" value="add"> <!-- add / edit -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">No Urut</label><input type="number" id="NO URUT" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">No Absen</label><input type="text" id="NO ABSEN" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">NIS <span class="text-red-500 text-xs">(Tidak Boleh Kembar)</span></label><input type="text" id="NIS" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">NISN</label><input type="text" id="NISN" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                </div>
-                                <div><label class="block text-sm font-medium text-gray-700 mb-1">No Peserta Ujian</label><input type="text" id="NO PESERTA UJIAN" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Peserta</label><input type="text" id="NAMA PESERTA" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
-                                    <select id="JENIS KELAMIN" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none">
-                                        <option value="">-- Pilih --</option>
-                                        <option value="Laki-laki">Laki-laki</option>
-                                        <option value="Perempuan">Perempuan</option>
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Tempat Lahir</label><input type="text" id="TEMPAT LAHIR" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label><input type="date" id="TANGGAL LAHIR" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                </div>
-                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Orang Tua</label><input type="text" id="NAMA ORANG TUA" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 outline-none"></div>
-                                <div class="pt-4"><button type="submit" id="submitSiswaBtn" class="w-full py-3 px-4 rounded-xl text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-md font-medium">Simpan Data Siswa</button></div>
-                                <div id="statusSiswa" class="hidden rounded-lg p-4 mt-4 text-sm font-medium"></div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CONTENT 3: INPUT NILAI SISWA (SPREADSHEET UI) -->
-                <div id="nilai-content" class="spa-content hidden max-w-full mx-auto">
-                    <div class="mb-4">
-                        <h1 class="text-3xl font-bold text-gray-900">Input Nilai Siswa</h1>
-                        <p class="mt-1 text-sm text-gray-500">Pilih Mata Pelajaran lalu isikan angka langsung di dalam sel tabel. Sel berwarna kuning akan terhitung otomatis.</p>
-                    </div>
-
-                    <!-- Subject Tabs & Actions -->
-                    <div class="mb-6 flex flex-col md:flex-row justify-between gap-4">
-                        <div class="flex flex-wrap gap-2" id="subjectTabsContainer">
-                            <!-- Tabs dihapus untuk tampilan All-in-One -->
-                        </div>
-                        <div class="flex flex-wrap gap-2 shrink-0">
-                            <button id="btnExportPDF" class="px-4 py-2 rounded-lg text-sm font-medium border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2">
-                                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                Ekspor PDF
-                            </button>
-                            <button id="btnDownloadTemplate1" class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
-                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Template Excel
-                            </button>
-                            <label class="px-4 py-2 rounded-lg text-sm font-medium border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2 cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                Impor Excel
-                                <input type="file" id="inputImportFile" accept=".xlsx" class="hidden">
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="glass rounded-2xl shadow-sm border border-white p-4 relative overflow-hidden">
-                        <div id="allSubjectsContainer" class="flex flex-col gap-8 w-full">
-                            <!-- 9 Tabel Mata Pelajaran akan di-render di sini oleh JavaScript -->
-                        </div>
-                        
-                        <div class="mt-4 flex justify-end items-center border-t border-gray-200 pt-4">
-                            <span id="batchSaveStatus" class="mr-4 text-sm font-medium"></span>
-                            <button id="batchSaveBtn" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5">
-                                SIMPAN SELURUH NILAI
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <footer class="mt-8 pt-4 pb-2 text-center text-sm text-gray-400 border-t border-white/20">
-                    <p>&copy; 2026 EduGrade - Sistem Pengelola Nilai Ujian Sekolah Otomatisasi.</p>
-                </footer>
-                <!-- CONTENT 4: KALKULATOR RANGKING -->
-                <div id="kalkulator-content" class="spa-content hidden max-w-5xl mx-auto">
-                    <div class="mb-6">
-                        <h1 class="text-3xl font-bold text-gray-900">Kalkulator Rangking (Top 10)</h1>
-                        <p class="mt-1 text-sm text-gray-500">Menghitung dan mendeskripsikan secara otomatis 10 Besar terbaik berdasarkan data nilai tersimpan.</p>
-                    </div>
-
-                    <div id="kalkulatorResult" class="glass rounded-2xl shadow-sm border border-white p-6 relative overflow-hidden hidden">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-xl font-bold text-gray-800 flex items-center">
-                                <svg class="w-6 h-6 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2.5a.5.5 0 00-.377.168l-4.5 5A.5.5 0 005.5 8.5h1.122l-.952 7.135a1.5 1.5 0 001.488 1.698h5.684a1.5 1.5 0 001.488-1.698L13.378 8.5H14.5a.5.5 0 00.377-.832l-4.5-5A.5.5 0 0010 2.5z" clip-rule="evenodd"></path></svg>
-                                Hasil Kalkulasi Otomatis Top 10
-                            </h3>
-                            <button id="refreshKalkulatorBtn" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                Refresh
-                            </button>
-                        </div>
-                        <div class="overflow-x-auto w-full">
-                            <table class="w-full text-sm border-collapse border border-gray-200 shadow-sm rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100 text-gray-700 text-center uppercase tracking-wider text-xs">
-                                    <tr>
-                                        <th class="border border-gray-200 px-4 py-4 font-bold w-24">Peringkat</th>
-                                        <th class="border border-gray-200 px-4 py-4 font-bold text-left w-64">Nama Siswa</th>
-                                        <th class="border border-gray-200 px-4 py-4 font-bold bg-yellow-100 w-32">Nilai Akhir</th>
-                                        <th class="border border-gray-200 px-4 py-4 font-bold text-left">Deskripsi Prestasi (Analisis Sistem)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="kalkulatorTableBody" class="bg-white divide-y divide-gray-200">
-                                    <!-- Results will be injected here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
-        </div>
-    </section>
-
 </body>
 </html>
