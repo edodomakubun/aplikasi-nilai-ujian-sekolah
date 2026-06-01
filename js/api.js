@@ -171,5 +171,12 @@ export const api = {
             console.error('saveGradesBatch error:', err);
             return { error: err.message };
         }
+    },
+
+    subscribeRealtime: (callback) => {
+        supabase.channel('edugrade-db-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, () => callback())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'grades' }, () => callback())
+            .subscribe();
     }
 };

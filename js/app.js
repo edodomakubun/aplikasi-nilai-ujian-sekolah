@@ -18,9 +18,13 @@ let dashboardData = JSON.parse(localStorage.getItem('edu_dashboardData')) || [];
 // ==========================================
 const initApp = () => {
     
-    // Initial Load Data
+    // Initial Load Data & Realtime Sync
     if(localStorage.getItem('auth_token')) {
         syncData();
+        api.subscribeRealtime(() => {
+            console.log('Realtime update detected, syncing data...');
+            syncData();
+        });
     }
     
     // Auth Buttons
@@ -231,11 +235,7 @@ const initApp = () => {
 
 };
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-} else {
-    initApp();
-}
+
 
 // ==========================================
 // GLOBAL SYNC & STATE
@@ -1472,4 +1472,13 @@ function renderKalkulatorRangking() {
     `).join('');
 
     container.classList.remove('hidden');
+}
+
+// ==========================================
+// BOOTSTRAP APP
+// ==========================================
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
 }
