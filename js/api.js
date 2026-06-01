@@ -26,7 +26,11 @@ const mapLegacyToStudent = (data) => ({
     nama_peserta: String(data['NAMA PESERTA']),
     jenis_kelamin: String(data['JENIS KELAMIN'] || ''),
     tempat_lahir: String(data['TEMPAT LAHIR'] || ''),
-    tanggal_lahir: data['TANGGAL LAHIR'] ? new Date(data['TANGGAL LAHIR']).toISOString().split('T')[0] : null,
+    tanggal_lahir: (() => {
+        if (!data['TANGGAL LAHIR']) return null;
+        const d = new Date(data['TANGGAL LAHIR']);
+        return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+    })(),
     nama_orang_tua: String(data['NAMA ORANG TUA'] || '')
 });
 
