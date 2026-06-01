@@ -1,33 +1,22 @@
-export function checkAuth() {
-    const token = localStorage.getItem('auth_token');
-    const loginView = document.getElementById('login-view');
-    const appView = document.getElementById('app-view');
-    
-    if (loginView && appView) {
-        if (!token) {
-            // Not logged in -> Show Login, Hide App
-            loginView.classList.remove('hidden');
-            loginView.classList.add('block');
-            appView.classList.add('hidden');
-            appView.classList.remove('flex');
-        } else {
-            // Logged in -> Hide Login, Show App
-            loginView.classList.add('hidden');
-            loginView.classList.remove('block');
-            appView.classList.remove('hidden');
-            appView.classList.add('flex');
-            
-            // Trigger routing to initial view (dashboard)
-            window.dispatchEvent(new Event('hashchange'));
-        }
+import { api } from './api.js';
+
+export function isLoggedIn() {
+    return localStorage.getItem('auth_token') !== null;
+}
+
+export async function login(username, password) {
+    const result = await api.login(username, password);
+    if (result && result.success) {
+        localStorage.setItem('auth_token', result.token);
+        localStorage.setItem('username', username);
+        return true;
     }
+    return false;
 }
 
 export function logout() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('username');
-    checkAuth();
+    // Remove auth-related caches if necessary
+    // Tapi kita pertahankan cache data nilai agar offline mode tetap ada
 }
-
-// Check initially when DOM is ready
-document.addEventListener('DOMContentLoaded', checkAuth);
