@@ -120,6 +120,19 @@ export const api = {
         }
     },
 
+    saveStudentsBatch: async (dataArray) => {
+        try {
+            const sbDataArray = dataArray.map(mapLegacyToStudent);
+            if (sbDataArray.length === 0) return { success: true };
+            const { error } = await supabase.from('students').upsert(sbDataArray, { onConflict: 'nis' });
+            if (error) throw error;
+            return { success: true };
+        } catch (err) {
+            console.error('saveStudentsBatch error:', err);
+            return { error: err.message };
+        }
+    },
+
     deleteStudent: async (data) => {
         try {
             const { error } = await supabase.from('students').delete().eq('nis', String(data.NIS));

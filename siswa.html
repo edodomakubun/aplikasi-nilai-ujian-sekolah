@@ -101,10 +101,21 @@
                             <h1 class="text-3xl font-bold text-gray-900">Data Siswa</h1>
                             <p class="mt-1 text-sm text-gray-500">Kelola daftar seluruh siswa yang terdaftar dalam sistem.</p>
                         </div>
-                        <button id="openAddSiswaModal" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-colors flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            Tambah Siswa Baru
-                        </button>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="exportSiswaBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-sm transition-colors flex items-center justify-center text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Ekspor Excel
+                            </button>
+                            <button id="importSiswaBtn" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-medium shadow-sm transition-colors flex items-center justify-center text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                Impor Excel
+                            </button>
+                            <input type="file" id="importSiswaInput" accept=".xlsx, .xls" class="hidden">
+                            <button id="openAddSiswaModal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-sm transition-colors flex items-center justify-center text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Tambah Siswa Baru
+                            </button>
+                        </div>
                     </div>
 
                     <div class="glass rounded-2xl shadow-sm border border-white overflow-hidden flex flex-col">

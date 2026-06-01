@@ -99,6 +99,116 @@ const initApp = () => {
     document.getElementById('searchSiswaInput')?.addEventListener('input', (e) => {
         renderSiswaTable(e.target.value);
     });
+
+    // Export Siswa Excel
+    document.getElementById('exportSiswaBtn')?.addEventListener('click', async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Data Siswa');
+        
+        worksheet.columns = [
+            { header: 'NO URUT', key: 'NO URUT', width: 10 },
+            { header: 'NIS', key: 'NIS', width: 15 },
+            { header: 'NISN', key: 'NISN', width: 15 },
+            { header: 'NO PESERTA UJIAN', key: 'NO PESERTA UJIAN', width: 20 },
+            { header: 'NO ABSEN', key: 'NO ABSEN', width: 10 },
+            { header: 'NAMA PESERTA', key: 'NAMA PESERTA', width: 30 },
+            { header: 'JENIS KELAMIN', key: 'JENIS KELAMIN', width: 15 },
+            { header: 'TEMPAT LAHIR', key: 'TEMPAT LAHIR', width: 20 },
+            { header: 'TANGGAL LAHIR', key: 'TANGGAL LAHIR', width: 15 },
+            { header: 'NAMA ORANG TUA', key: 'NAMA ORANG TUA', width: 25 }
+        ];
+
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        rawStudents.forEach(siswa => {
+            worksheet.addRow(siswa);
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), 'Data_Siswa_EduGrade.xlsx');
+    });
+
+    // Import Siswa Excel
+    const importSiswaBtn = document.getElementById('importSiswaBtn');
+    const importSiswaInput = document.getElementById('importSiswaInput');
+    
+    if (importSiswaBtn && importSiswaInput) {
+        importSiswaBtn.addEventListener('click', () => {
+            importSiswaInput.click();
+        });
+
+        importSiswaInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            importSiswaBtn.disabled = true;
+            importSiswaBtn.innerHTML = 'Memproses...';
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = new ExcelJS.Workbook();
+                    await workbook.xlsx.load(data);
+                    
+                    const worksheet = workbook.worksheets[0];
+                    const headers = [];
+                    const importedData = [];
+
+                    worksheet.eachRow((row, rowNumber) => {
+                        if (rowNumber === 1) {
+                            row.eachCell((cell, colNumber) => {
+                                headers[colNumber] = cell.value;
+                            });
+                        } else {
+                            const rowData = {};
+                            row.eachCell((cell, colNumber) => {
+                                let value = cell.value;
+                                if (value instanceof Date) {
+                                    // Add 1 day if timezone offsets make it previous day, otherwise simple toISOString
+                                    const tzOffset = value.getTimezoneOffset() * 60000;
+                                    value = new Date(value.getTime() - tzOffset).toISOString().split('T')[0];
+                                } else if (typeof value === 'object' && value !== null && value.text) {
+                                    value = value.text;
+                                } else if (value && typeof value === 'object' && value.result) {
+                                    value = value.result;
+                                }
+                                rowData[headers[colNumber]] = value;
+                            });
+                            // Validasi minimum NIS & Nama
+                            if (rowData['NIS'] && rowData['NAMA PESERTA']) {
+                                importedData.push(rowData);
+                            }
+                        }
+                    });
+
+                    if (importedData.length > 0) {
+                        const result = await api.saveStudentsBatch(importedData);
+                        if (result && result.success) {
+                            alert(`Berhasil mengimpor ${importedData.length} data siswa!`);
+                            syncData(); // Sinkronisasi otomatis ke tampilan
+                        } else {
+                            alert('Gagal mengimpor data: ' + (result ? result.error : 'Kesalahan server'));
+                        }
+                    } else {
+                        alert('Tidak ada data valid yang ditemukan dalam file excel. Pastikan kolom NIS dan NAMA PESERTA tidak kosong.');
+                    }
+                } catch(err) {
+                    alert('Gagal membaca file Excel. Pastikan formatnya .xlsx');
+                    console.error(err);
+                } finally {
+                    importSiswaBtn.disabled = false;
+                    importSiswaBtn.innerHTML = `
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Impor Excel
+                    `;
+                    importSiswaInput.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
     
     // Make deleteStudent global so it can be called from onclick
     window.deleteSiswa = async function(nis) {
