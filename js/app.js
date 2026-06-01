@@ -125,6 +125,36 @@ const initApp = () => {
             worksheet.addRow(siswa);
         });
 
+        // Set column styles and data validation for up to 500 rows to ensure matching Supabase types
+        for (let i = 2; i <= 500; i++) {
+            // A: NO URUT (Integer)
+            worksheet.getCell(`A${i}`).dataValidation = {
+                type: 'whole',
+                allowBlank: true,
+                showErrorMessage: true,
+                errorTitle: 'Input Tidak Valid',
+                error: 'No Urut harus berupa angka bulat.'
+            };
+            // B, C, D, E: NIS, NISN, NO PESERTA, NO ABSEN (Text format to preserve leading zeros)
+            worksheet.getCell(`B${i}`).numFmt = '@';
+            worksheet.getCell(`C${i}`).numFmt = '@';
+            worksheet.getCell(`D${i}`).numFmt = '@';
+            worksheet.getCell(`E${i}`).numFmt = '@';
+            
+            // G: JENIS KELAMIN (Dropdown List)
+            worksheet.getCell(`G${i}`).dataValidation = {
+                type: 'list',
+                allowBlank: true,
+                formulae: ['"Laki-laki,Perempuan"'],
+                showErrorMessage: true,
+                errorTitle: 'Pilihan Tidak Valid',
+                error: 'Pilih jenis kelamin dari dropdown.'
+            };
+
+            // I: TANGGAL LAHIR (Format Date YYYY-MM-DD)
+            worksheet.getCell(`I${i}`).numFmt = 'yyyy-mm-dd';
+        }
+
         const buffer = await workbook.xlsx.writeBuffer();
         saveAs(new Blob([buffer]), 'Data_Siswa_EduGrade.xlsx');
     });
