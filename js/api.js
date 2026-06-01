@@ -70,6 +70,25 @@ const mapLegacyToGrade = (data, nis) => ({
 });
 
 export const api = {
+    fetchAll: async (table, orderCol) => {
+        let allData = [];
+        let from = 0;
+        const step = 1000;
+        while (true) {
+            let query = supabase.from(table).select('*').range(from, from + step - 1);
+            if (orderCol) query = query.order(orderCol, { ascending: true });
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            
+            allData = allData.concat(data);
+            if (data.length < step) break;
+            from += step;
+        }
+        return allData;
+    },
+
     login: async (username, password) => {
         // We will mock login for now, or use Supabase Auth later.
         // For simplicity, let's keep the hardcoded admin login or query a hypothetical users table.
@@ -92,8 +111,7 @@ export const api = {
 
     getStudents: async () => {
         try {
-            const { data, error } = await supabase.from('students').select('*').order('no_urut', { ascending: true });
-            if (error) throw error;
+            const data = await api.fetchAll('students', 'no_urut');
             return { data: data.map(mapStudentToLegacy) };
         } catch (err) {
             console.error('getStudents error:', err);
@@ -103,9 +121,28 @@ export const api = {
 
     getGrades: async () => {
         try {
-            const { data, error } = await supabase.from('grades').select('*');
-            if (error) throw error;
-            return { data: data.map(mapGradeToLegacy) };
+            const subjectToTable = {
+                'PENDIDIKAN AGAMA KRISTEN': 'grades_agama',
+                'PKN': 'grades_pkn',
+                'BAHASA INDONESIA': 'grades_indo',
+                'MATEMATIKA': 'grades_mtk',
+                'IPA': 'grades_ipa',
+                'IPS': 'grades_ips',
+                'SBK': 'grades_sbk',
+                'PJOK': 'grades_pjok',
+                'MULOK': 'grades_mulok'
+            };
+            
+            const tables = Object.values(subjectToTable);
+            const promises = tables.map(t => api.fetchAll(t));
+            const results = await Promise.all(promises);
+            
+            let allGrades = [];
+            results.forEach(res => {
+                allGrades = allGrades.concat(res);
+            });
+
+            return { data: allGrades.map(mapGradeToLegacy) };
         } catch (err) {
             console.error('getGrades error:', err);
             return { error: err.message };
@@ -150,12 +187,26 @@ export const api = {
 
     saveGrade: async (data) => {
         try {
+            const subjectToTable = {
+                'PENDIDIKAN AGAMA KRISTEN': 'grades_agama',
+                'PKN': 'grades_pkn',
+                'BAHASA INDONESIA': 'grades_indo',
+                'MATEMATIKA': 'grades_mtk',
+                'IPA': 'grades_ipa',
+                'IPS': 'grades_ips',
+                'SBK': 'grades_sbk',
+                'PJOK': 'grades_pjok',
+                'MULOK': 'grades_mulok'
+            };
+            const table = subjectToTable[data['MATA PELAJARAN']];
+            if (!table) return { error: 'Mata pelajaran tidak valid' };
+
             // Find NIS first
             const { data: stdData, error: stdError } = await supabase.from('students').select('nis').eq('nama_peserta', data['NAMA SISWA']).single();
             if (stdError) throw stdError;
             
             const sbData = mapLegacyToGrade(data, stdData.nis);
-            const { error } = await supabase.from('grades').upsert(sbData, { onConflict: 'nis, mata_pelajaran' });
+            const { error } = await supabase.from(table).upsert(sbData, { onConflict: 'nis, mata_pelajaran' });
             if (error) throw error;
             return { success: true };
         } catch (err) {
@@ -166,6 +217,18 @@ export const api = {
 
     saveGradesBatch: async (dataArray) => {
         try {
+            const subjectToTable = {
+                'PENDIDIKAN AGAMA KRISTEN': 'grades_agama',
+                'PKN': 'grades_pkn',
+                'BAHASA INDONESIA': 'grades_indo',
+                'MATEMATIKA': 'grades_mtk',
+                'IPA': 'grades_ipa',
+                'IPS': 'grades_ips',
+                'SBK': 'grades_sbk',
+                'PJOK': 'grades_pjok',
+                'MULOK': 'grades_mulok'
+            };
+
             // We need to fetch all students to map nama_siswa to nis
             const { data: stdList, error: stdError } = await supabase.from('students').select('nis, nama_peserta');
             if (stdError) throw stdError;
@@ -173,16 +236,28 @@ export const api = {
             const stdMap = {};
             stdList.forEach(s => stdMap[s.nama_peserta] = s.nis);
 
-            const sbDataArray = dataArray.map(data => {
+            // Group data by table
+            const tableDataMap = {};
+            
+            dataArray.forEach(data => {
+                const table = subjectToTable[data['MATA PELAJARAN']];
+                if (!table) return;
+                
                 const nis = stdMap[data['NAMA SISWA']];
-                if(!nis) return null;
-                return mapLegacyToGrade(data, nis);
-            }).filter(Boolean);
+                if(!nis) return;
+                
+                if (!tableDataMap[table]) tableDataMap[table] = [];
+                tableDataMap[table].push(mapLegacyToGrade(data, nis));
+            });
 
-            if (sbDataArray.length === 0) return { success: true };
+            // Upsert each table sequentially
+            for (const table in tableDataMap) {
+                if (tableDataMap[table].length > 0) {
+                    const { error } = await supabase.from(table).upsert(tableDataMap[table], { onConflict: 'nis, mata_pelajaran' });
+                    if (error) throw error;
+                }
+            }
 
-            const { error } = await supabase.from('grades').upsert(sbDataArray, { onConflict: 'nis, mata_pelajaran' });
-            if (error) throw error;
             return { success: true };
         } catch (err) {
             console.error('saveGradesBatch error:', err);
