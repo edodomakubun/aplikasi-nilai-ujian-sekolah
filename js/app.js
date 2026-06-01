@@ -16,7 +16,7 @@ let dashboardData = JSON.parse(localStorage.getItem('edu_dashboardData')) || [];
 // ==========================================
 // INITIALIZATION & EVENT LISTENERS
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
+const initApp = () => {
     
     // Initial Load Data
     if(localStorage.getItem('auth_token')) {
@@ -258,7 +258,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // ==========================================
 // GLOBAL SYNC & STATE
