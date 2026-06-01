@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { logout, checkAuth } from './auth.js';
+import { logout } from './auth.js';
 
 let rawData = JSON.parse(localStorage.getItem('edu_rawData')) || [];
 let rawStudents = JSON.parse(localStorage.getItem('edu_rawStudents')) || [];
@@ -35,35 +35,6 @@ const initApp = () => {
         renderTable(e.target.value);
     });
 
-    // Login Form Submit
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('loginBtn');
-            const msg = document.getElementById('loginMessage');
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            btn.disabled = true;
-            btn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div> Memproses...';
-            msg.classList.add('hidden');
-
-            const result = await api.login(username, password);
-
-            if (result && result.success) {
-                localStorage.setItem('auth_token', result.token);
-                localStorage.setItem('username', username);
-                checkAuth(); // Switch to app view
-                syncData(); // Background sync data initially
-            } else {
-                msg.classList.remove('hidden');
-                msg.innerText = result ? result.error : "Gagal terhubung ke server.";
-                btn.disabled = false;
-                btn.innerHTML = 'Masuk ke Dashboard';
-            }
-        });
-    }
 
     // Modal Siswa
     const modal = document.getElementById('siswaModal');
